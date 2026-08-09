@@ -51,42 +51,9 @@ independent sources, the dividers are on a breadboard, a Teensy 3.0 reads all
 three analogue channels at about 100 Hz, and a multi-HID firmware presents as a
 gamepad, mouse and keyboard simultaneously.
 
-Measured Vref was about 698 counts against 700 predicted. The reconstructed
-joystick voltage came out at 5.58 to 5.67 V against the meter's 5.6 V.
-
-## Circuit
-
-```
-   joystick pin 7  ── [33 Ω] ─────────────  +12 V (bench supply)
-   joystick pin 8  ───────────────────────  GND  (tied to Teensy GND)
-
-   joystick pin 1 (Y) ──┬── 100 kΩ ──┬──►  A7  (pad 21)
-                        │            │
-                        │           68 kΩ
-                        │            │
-                        │           GND
-
-   joystick pin 2 (X) ──┬── 100 kΩ ──┬──►  A8  (pad 22)
-                        │            │
-                        │           68 kΩ
-                        │            │
-                        │           GND
-
-   joystick pin 3 (Vref) ┬── 100 kΩ ──┬──► A9  (pad 23)
-                         │            │
-                         │           68 kΩ
-                         │            │
-                         │           GND
-
-   3.5 mm jack tip     ───────────────────► D2 (INPUT_PULLUP, pad 2)
-   3.5 mm jack sleeve  ───────────────────► GND
-```
-
-The joystick outputs swing between 4.5 and 6.8 V, centred on a 5.6 V reference
-it generates itself. The Teensy 3.0 runs at 3.3 V and its pins are not 5 V
-tolerant, so each output is divided down before it reaches an ADC input. The
-33 Ω resistor in the supply leg acts as a soft fuse. Full derivation and the
-expected ADC values are in [wiring](docs/wiring.md).
+The measurements agree with the design: the joystick's reference reads about 698
+ADC counts against 700 predicted from the divider values, and works back out to
+5.58 to 5.67 V against the meter's 5.6 V. Derivation in [wiring](docs/wiring.md).
 
 ## Documentation
 
@@ -96,40 +63,98 @@ expected ADC values are in [wiring](docs/wiring.md).
 | [Wiring the Teensy](docs/wiring.md) | Divider design for a 3.3 V ADC, pad map, expected readings, known issues |
 | [Firmware](docs/firmware.md) | The bring-up sketch, the multi-HID build, and the serial protocol |
 | [Host tooling](docs/tooling.md) | Build, flash, monitor and tune without installing a toolchain |
-| [Demo: tilt labyrinth](docs/demo-labyrinth.md) | A test application driving the full chain |
+| [Marble game](docs/demo-labyrinth.md) | The tilt labyrinth demo: controls, levels, how it is rendered |
 | [Single-stick game design](docs/joystick-only-games-brief.md) | Notes on interaction design for one axis pair with no buttons |
 | [Open questions and roadmap](docs/roadmap.md) | Unresolved items and planned work |
 
 ## Quick start
 
-Requires a Teensy 3.0, six resistors and a bench supply.
+**You need** a Teensy 3.0, six resistors, a 12 V bench supply, and an R-Net
+specialty joystick. Plus:
 
-1. Build the circuit above. See [wiring](docs/wiring.md) for the pad map.
-2. Flash the bring-up firmware and watch the values:
+- **Arduino IDE 2.x with Teensyduino.** No separate toolchain install; the
+  tooling drives the `arduino-cli` bundled inside the IDE.
+- **Python 3.9+** with `pyserial`. The marble game also wants `raylib`, `numpy`
+  and `scipy`; `crosshair.py` wants `pygame`.
+
+  ```
+  python -m pip install pyserial pygame raylib numpy scipy
+  ```
+
+### 1. Build and flash
+
+1. Wire the dividers. The circuit, the pad map and the derivation are in
+   [wiring](docs/wiring.md). Nothing goes straight to a Teensy pin: the
+   joystick swings to 6.8 V and the Teensy is a 3.3 V part that is not 5 V
+   tolerant.
+
+2. Flash the multi-HID firmware:
 
    ```
-   ./rnet.cmd flash          # Windows
-   python tools/scope.py     # any platform
+   ./rnet.cmd flash -Hid
    ```
 
-3. For USB HID output, flash the multi-HID build. See
-   [firmware](docs/firmware.md).
+3. The USB descriptor set changes, so the board comes back on a **new COM
+   port**. Re-pin it once:
 
-The Python tools (`scope.py`, `crosshair.py`, `hid.py` and the demo) run on any
-platform. The `rnet` build wrapper is currently PowerShell only; see
-[roadmap](docs/roadmap.md).
+   ```
+   ./rnet.cmd config
+   ```
 
-## Requirements
+It boots **parked**, driving nothing. That is deliberate: a stick that can move
+the cursor and type is a device that can do damage to the host if it drifts, so
+nothing happens until you ask for it.
 
-**Firmware.** Arduino IDE 2.x with Teensyduino. No separate toolchain install is
-needed; the tooling drives the `arduino-cli` bundled inside the IDE.
+To check the raw signals instead, flash the bring-up sketch with
+`./rnet.cmd flash` and watch them with `python tools/scope.py`. More in
+[firmware](docs/firmware.md).
 
-**Host tools.** Python 3.9 or later with `pyserial`. The demo additionally
-requires `raylib`, `numpy` and `scipy`. `crosshair.py` requires `pygame`.
+### 2. Use it
+
+All the interfaces are live at once; you pick which one the stick drives.
+
+**a) As a mouse**
 
 ```
-python -m pip install pyserial pygame raylib numpy scipy
+./rnet.cmd hid mode mouse
+./rnet.cmd hid set mousegain 900     # cursor speed, 40 to 3000
 ```
+
+Velocity mapping, so the stick steers the cursor and lets it stop, rather than
+snapping it back to the middle on release. The switch on the 3.5 mm jack is
+left-click.
+
+**b) As a keyboard**
+
+```
+./rnet.cmd hid mode keyboard
+```
+
+Arrow keys, with separate press and release thresholds so it does not chatter at
+the boundary.
+
+**c) Playing the marble game**
+
+```
+./rnet.cmd hid mode park             # so it is not also moving the cursor
+./rnet.cmd demo labyrinth
+```
+
+Tilt a wooden board to roll a marble to the green cup. The game reads the serial
+stream directly, which runs in every mode, so **park it first** — otherwise the
+stick plays the game and drives your mouse at the same time. Only one program
+can hold the port, so set the mode before launching the game.
+
+**Everything else:** `./rnet.cmd hid` on its own opens an interactive session
+for live tuning, and `./rnet.cmd hid --help` lists every mode and setting with
+its range. Gamepad mode is `./rnet.cmd hid mode gamepad`, and it is DirectInput
+rather than XInput — see [firmware](docs/firmware.md) if a game cannot see it.
+
+Details: [firmware and the serial protocol](docs/firmware.md) ·
+[host tooling](docs/tooling.md) · [the marble game](docs/demo-labyrinth.md)
+
+The Python tools run on any platform. The `rnet` wrapper is PowerShell only for
+now; see [roadmap](docs/roadmap.md).
 
 ## References
 
