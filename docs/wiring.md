@@ -9,6 +9,8 @@ are Y, X and Vref; pins 7 and 8 are +12 V and ground. The 33 Ω sits in the
 supply leg as a soft fuse, the 100 kΩ / 68 kΩ pairs divide each analogue output
 down to something the 3.3 V ADC can read, and the taps land on A7, A8 and A9.
 
+`diagram.svg` alongside it is the editable Inkscape source for those annotations.
+
 ## Wiring (Teensy 3.0)
 
 ```
