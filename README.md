@@ -1,4 +1,4 @@
-# rnet-adaptive-input
+# R-net Adaptive Input: Interface to use Permobil joystick from microcontroller and computer. 
 
 Reading a Permobil R-Net specialty joystick (an Omni-compatible SID) from a
 Teensy, and presenting it to a host as an ordinary USB input device.
