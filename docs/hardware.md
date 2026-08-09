@@ -15,7 +15,7 @@ Identifying the joystick, the verified 9-pin D-sub pinout, the measurements it w
 
 ## Confirmed pinout (9-pin D-sub)
 
-Verified by combination of: PG Drives R-Net Omni technical manual, Bob Paradiso's CustomSID KiCad schematic, and direct DMM measurements on the user's specific unit.
+Verified by combination of: PG Drives R-Net Omni technical manual, the KiCad schematic in Bob Paradiso's [CustomSID](https://github.com/bobparadiso/CustomSID), and direct DMM measurements on this specific unit.
 
 | Pin | Function | Notes |
 |---|---|---|
@@ -39,6 +39,28 @@ Verified by combination of: PG Drives R-Net Omni technical manual, Bob Paradiso'
 ```
 
 Pin 1 = upper-left. Pin 5 = upper-right. Pin 6 = lower-left. Pin 9 = lower-right. *Mirror-reverse if probing from the back/solder side.*
+
+Note the manual's own figure is drawn **viewed from below**, and shows the socket on the *Omni*, not the plug on the joystick. The numbering above was arrived at independently by measurement, and agrees.
+
+### Manufacturer's pin functions
+
+The Omni supports both analogue and digital SIDs on the same connector, and the pins mean different things in each case. From the R-Net Omni technical manual, [SK78813/7 page 167](https://industrial.curtisswright.com/sites/default/files/sunrise/pgdt_omni_manual_SK78813-07.pdf#page=167):
+
+| Pin | Analogue SID | Digital SID |
+|---|---|---|
+| 1 | Joystick Speed | Forward |
+| 2 | Joystick Direction | Reverse |
+| 3 | Joystick Reference | Left |
+| 4 | — | Right |
+| 5 | Detect | Detect |
+| 6 | Fifth Switch | Fifth Switch |
+| 7 | 12 V, 100 mA | 12 V, 100 mA |
+| 8 | Joystick Ground | 0 V |
+| 9 | Connected to 7 | Connected to 7 |
+
+Two things worth drawing out. Pin 4 is only used by digital devices, which is why it reads as unconnected on this analogue joystick. And **pin 6 is officially the "Fifth Switch"** — this document calls it the MODE switch elsewhere, after its behaviour on this unit, but the manufacturer's name is the one to search for.
+
+The manual also states the Omni's own input resistance is 100 kΩ to 0 V, and that pins 7 and 9 share a 100 mA budget.
 
 ### Measurement evidence (joystick UNPOWERED)
 

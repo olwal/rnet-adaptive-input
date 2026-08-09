@@ -1,17 +1,37 @@
-# R-net Adaptive Input: Interface to use Permobil joystick from microcontroller and computer. 
+# R-net Adaptive Input
 
-Reading a Permobil R-Net specialty joystick (an Omni-compatible SID) from a
-Teensy, and presenting it to a host as an ordinary USB input device.
+### Use a wheelchair joystick as a mouse, keyboard or game controller
 
 https://github.com/user-attachments/assets/6f5dde21-41e2-4d8e-a4ac-a26c28fd4ac4
 
 ![The bench build: R-Net joystick on a D-sub breakout, dividers, and a Teensy 3.0](docs/diagram.jpg)
 
-These joysticks are proportional, well built and widely available secondhand,
-but they use a proprietary analogue interface and are designed to talk only to
-their own controller. This project documents the connector, gets the signals
-into a microcontroller safely, and exposes the result as a gamepad, mouse or
-keyboard.
+Wheelchair joysticks are excellent input devices. They are proportional, they
+are built to be used all day, and someone who drives one already has years of
+muscle memory in it. But they only speak to their own wheelchair controller,
+over a private analogue interface, so that skill stops at the edge of the chair.
+
+This project bridges that gap. A small microcontroller sits between the joystick
+and a computer, and the computer sees an ordinary USB device — no drivers, no
+software to install on the host.
+
+**What you can do with it**
+
+- **Move the mouse.** Drive a cursor and click, with an adjustable dead zone and
+  response curve so small hand movements stay usable.
+- **Send keystrokes.** Arrow keys for anything menu- or key-driven.
+- **Be a game controller.** A standard USB gamepad, so games, flight and driving
+  sims, and RC simulators see it as a normal stick.
+- **Feed your own software.** Raw and shaped values stream over a serial link
+  the whole time, whatever mode it is in.
+
+All four run at once and you switch between them from a small command-line tool,
+because these joysticks have no spare button to switch with.
+
+The hardware here is a Permobil R-Net *specialty joystick* — the kind sold as an
+alternative input for an R-Net Omni controller. They turn up secondhand
+regularly and cheaply. The connector is undocumented publicly, so this repo also
+writes down the pinout, verified against real hardware.
 
 > ### Disclaimer
 >
@@ -117,7 +137,8 @@ python -m pip install pyserial pygame raylib numpy scipy
   alternative inputs. This project does the inverse, reading the real joystick,
   but the connector pinout is the same and the KiCad schematic was used for
   pin-by-pin verification.
-  [Write-up](https://bobparadiso.com/2018/10/09/custom-proportional-power-wheelchair-drive-controls/),
+  [Repository](https://github.com/bobparadiso/CustomSID) ·
+  [write-up](https://bobparadiso.com/2018/10/09/custom-proportional-power-wheelchair-drive-controls/),
   including voltage specifications (Vref at 50 % of 12 V, ±1.2 V deflection).
 - **PG Drives R-Net Omni Technical Manual**, document `SK78813-07`. The SID port
   section documents the 9-way D-type connector. Not redistributed here, as it is
