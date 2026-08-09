@@ -1,0 +1,33 @@
+# Build output
+build/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Machine-specific local config
+tools/board.json
+tools/demos/scores.json
+
+# Prototypes that are not ready to publish
+tools/demos/_archive/
+
+# Third-party documents - not ours to redistribute.
+# PG Drives / Curtiss-Wright R-Net Omni technical manual (SK78813-07):
+*.pdf
+# PJRC Teensy pinout cards: https://www.pjrc.com/teensy/pinout.html
+docs/teensy30_pinout_*
+
+# Screenshots of unpublished demos
+shots/sight_*.png
+shots/rally.png
+
+# Capture scratch space
+video/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
