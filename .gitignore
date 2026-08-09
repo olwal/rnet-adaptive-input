@@ -23,8 +23,12 @@ tools/_*.py
 # Third-party documents - not ours to redistribute.
 # PG Drives / Curtiss-Wright R-Net Omni technical manual (SK78813-07):
 *.pdf
-# PJRC Teensy pinout cards: https://www.pjrc.com/teensy/pinout.html
-docs/teensy30_pinout_*
+# PJRC Teensy pinout cards - linked from the docs, not redistributed:
+# https://www.pjrc.com/teensy/pinout.html
+teensy30_pinout_*
+
+# Stray 75x36 export; diagram.jpg is the one that gets used
+docs/diagram.png
 
 # Screenshots of unpublished demos
 shots/sight_*.png

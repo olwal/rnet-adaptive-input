@@ -19,6 +19,8 @@ safely, and presents the result to a host as a gamepad, mouse or keyboard.
 >
 > No warranty of any kind — see [LICENSE](LICENSE).
 
+![The bench build: R-Net joystick on a D-sub breakout, dividers, and a Teensy 3.0](docs/diagram.jpg)
+
 ## Status
 
 Working end to end. Pinout verified on physical hardware against three

@@ -2,6 +2,13 @@
 
 Divider design for a 3.3 V ADC, the Teensy 3.0 pad map, expected readings, and the gotchas that cost the most time.
 
+![The bench build: D-sub breakout, dividers and Teensy 3.0](diagram.jpg)
+
+The build as wired. The D-sub breaks out to screw terminals — pins 1, 2 and 3
+are Y, X and Vref; pins 7 and 8 are +12 V and ground. The 33 Ω sits in the
+supply leg as a soft fuse, the 100 kΩ / 68 kΩ pairs divide each analogue output
+down to something the 3.3 V ADC can read, and the taps land on A7, A8 and A9.
+
 ## Wiring (Teensy 3.0)
 
 ```
