@@ -1,5 +1,7 @@
 # rnet-adaptive-input
 
+https://github.com/user-attachments/assets/6f5dde21-41e2-4d8e-a4ac-a26c28fd4ac4
+
 Reading a Permobil R-Net specialty joystick — an Omni-compatible SID — from a
 Teensy, and turning it into an ordinary USB input device.
 
