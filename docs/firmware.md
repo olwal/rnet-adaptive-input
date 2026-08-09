@@ -4,7 +4,7 @@ Two sketches: a bring-up build that streams telemetry, and a multi-HID build tha
 
 ## Test sketch
 
-Source of truth is **`r-net_test/r-net_test.ino`** — read it there rather than
+The source of truth is **`r-net_test/r-net_test.ino`**. Read it there rather than
 maintaining a second copy here. Pin assignments only:
 
 ```cpp
@@ -36,16 +36,16 @@ control.
 USB type is a **compile-time** choice, so all five interfaces (CDC status, CDC
 data, keyboard, mouse, joystick) enumerate together and stay enumerated. "Mode"
 selects which one is actively driven, not which exists. Verified against the
-core: the gamepad is the 12-byte report — 6 axes at 10-bit, 32 buttons, one hat.
+core: the gamepad is the 12-byte report, with 6 axes at 10-bit, 32 buttons and one hat.
 
 | Mode | | |
 |---|---|---|
-| 0 | `parked` | drives nothing — the power-on default |
+| 0 | `parked` | drives nothing; the power-on default |
 | 1 | `gamepad` | absolute axes, DirectInput |
 | 2 | `mouse` | velocity mapping |
 | 3 | `keyboard` | arrow keys |
 
-### Five decisions worth knowing
+### Design notes
 
 **It boots parked.** A stick that can move the cursor and type is a device that
 can do arbitrary damage to the host. This one drifts a few counts at rest, and a
@@ -59,8 +59,8 @@ keys, zeroes the mouse, centres all six axes and clears all 32 buttons.
 
 **Mouse mode carries a sub-pixel accumulator.** `Mouse.move` takes `int8_t`.
 Without carrying the fractional remainder between ticks, anything under one
-pixel per tick truncates to zero and slow precise movement becomes impossible —
-the cursor simply refuses to budge until you shove it.
+pixel per tick truncates to zero and slow, precise movement becomes impossible:
+the cursor does not move until it is pushed hard.
 
 **Keyboard mode has separate on/off thresholds** (0.55 / 0.40). One threshold
 gives you key chatter at the boundary, machine-gunning keydown/keyup at loop
@@ -86,8 +86,8 @@ SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty <value>
 
 Teensy's gamepad is a generic HID device, so Windows sees it through
 **DirectInput**. A lot of modern games only support **XInput** and will simply
-not see the controller — it appears in Windows' own game-controller panel and
-then seems to do nothing.
+not see the controller. It appears in Windows' own game-controller panel and
+then appears to do nothing.
 
 Cheapest workaround is to launch the game through **Steam**, which remaps any
 generic pad to a virtual Xbox controller with no code at all. Otherwise ViGEmBus
@@ -103,7 +103,7 @@ descriptor set together; build outputs are keyed by FQBN so the two variants
 don't collide.
 
 **Switching USB type changes the COM port.** A different descriptor set is a
-different USB device, so Windows enumerates it fresh and assigns a new port —
+different USB device, so Windows enumerates it fresh and assigns a new port.
 COM28 became COM34 here. Everything that reads `tools/board.json` (the demos,
 `scope.py`, `crosshair.py`, `hid.py`) then points at a port that no longer
 exists. Run `.\rnet.cmd config` after the first HID flash to re-pin it.
@@ -128,4 +128,4 @@ fields cost no compatibility.
 
 ---
 
-[← Back to the README](../README.md)
+[Back to the README](../README.md)

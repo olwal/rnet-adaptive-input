@@ -4,7 +4,7 @@ What is unresolved on the hardware, and where this should go next.
 
 ## Cross-platform support
 
-The Python side — `scope.py`, `crosshair.py`, `hid.py` and the demo — is already
+The Python side (`scope.py`, `crosshair.py`, `hid.py` and the demo) is already
 portable and has no Windows-specific code in it. The gap is the build wrapper.
 
 - [ ] **Replace `rnet.ps1` with something portable.** It is PowerShell and it
@@ -28,28 +28,28 @@ portable and has no Windows-specific code in it. The gap is the build wrapper.
 
 ## Hardware questions
 
-- [x] **Wire dividers and verify Teensy readings** — done 2026-08-08. Measured
+- [x] **Wire dividers and verify Teensy readings.** Done 2026-08-08. Measured
       Vref ~698, X/Y ~698, reconstructed 5.58–5.67 V against the DMM's 5.6 V.
 - [ ] **Identify the two 3.5 mm sockets on the joystick underside** (one red, one
       white) and what the male pigtail on the D-sub cable patches into. Likely
       the R-Net convention of separate *Mode* and *On-Off / Profile* switch
       jacks. Test by patching pin 6 into each in turn and watching `sw` in
       `scope.py` while pressing the stick down and any other control. **This may
-      also answer whether a stick push is detectable at all** — it is not exposed
+      also answer whether a stick push is detectable at all.** It is not exposed
       on the D-sub.
 - [ ] **Test the 3.5 mm switch.** Short tip to sleeve (a TS plug with jumpered
       leads, or a plug and a paperclip). Verify `sw` toggles 0 → 1. Watch the
       joystick LED, which may change colour or pattern on a mode switch.
 - [ ] **Check for a "no plug inserted" detect contact.** Pin 6 might already read
       shorted to GND with nothing plugged in. If so, inserting an unshorted plug
-      *opens* the contact and shorting the plug closes it — the inverse of what
-      you would assume.
-- [ ] **Open the housing** (optional) to confirm the sensor type — almost
-      certainly Hall-effect — and that pin 6 really does route to the 3.5 mm jack.
+      *opens* the contact and shorting the plug closes it, the inverse of the
+      expected behaviour.
+- [ ] **Open the housing** (optional) to confirm the sensor type, almost
+      certainly Hall-effect, and that pin 6 does route to the 3.5 mm jack.
 
 ## Software
 
-- [x] **USB HID** — done. Gamepad, mouse and keyboard enumerate together; see
+- [x] **USB HID.** Done. Gamepad, mouse and keyboard enumerate together; see
       [firmware](firmware.md).
 - [ ] **A switch-free way to change mode.** Everything currently needs a keyboard
       or the serial link. With no button on the stick, the established
@@ -61,4 +61,4 @@ portable and has no Windows-specific code in it. The gap is the build wrapper.
 
 ---
 
-[← Back to the README](../README.md)
+[Back to the README](../README.md)

@@ -7,11 +7,11 @@ Identifying the joystick, the verified 9-pin D-sub pinout, the measurements it w
 **Joystick** (user-supplied, accessibility/mobility salvage):
 - Permobil R-Net specialty joystick
 - Labels: `ART 0035-7003a`, `PAB 1822988`
-- References `SK78813` (which is actually the R-Net Omni *technical manual* number — indicates this joystick was sold as an Omni-compatible SID input device)
+- References `SK78813` (the R-Net Omni *technical manual* number, indicating this joystick was sold as an Omni-compatible SID input device)
 - Connector: 9-pin D-sub male (cable end)
 - Auxiliary: 3.5mm mono jack on joystick body (for external user switch / "buddy button")
 
-**Goal**: read the joystick from a generic microcontroller (Teensy 3.0; HID gamepad or other applications later). No R-Net Omni controller in the loop. The Teensy's native USB also makes the HID stretch goal straightforward — no ATmega32U4 needed.
+**Goal**: read the joystick from a generic microcontroller (Teensy 3.0; HID gamepad or other applications later). No R-Net Omni controller in the loop. The Teensy's native USB also covers the HID case, so no ATmega32U4 is required.
 
 ## Confirmed pinout (9-pin D-sub)
 
@@ -44,8 +44,8 @@ Pin 1 = upper-left. Pin 5 = upper-right. Pin 6 = lower-left. Pin 9 = lower-right
 
 | Test | Value | Interpretation |
 |---|---|---|
-| Pin 7 ↔ pin 8 | 30 kΩ | Input rail to GND through internal regulator + filter caps. Not a short, not open — normal. Reading creeps upward as the DMM charges the input caps, so treat it as approximate; the point is that it is neither ~0 Ω nor open. |
-| Pin 3 ↔ pin 8 | ~0.9 MΩ | Op-amp output to GND when unpowered — normal. |
+| Pin 7 ↔ pin 8 | 30 kΩ | Input rail to GND through internal regulator + filter caps. Neither a short nor open, which is normal. Reading creeps upward as the DMM charges the input caps, so treat it as approximate; the point is that it is neither ~0 Ω nor open. |
+| Pin 3 ↔ pin 8 | ~0.9 MΩ | Op-amp output to GND when unpowered, which is normal. |
 | Pin 1 ↔ pin 8 | ~96.4 kΩ static | Static buffer output network; doesn't change with stick movement until powered. Normal. |
 
 ### Measurement evidence (joystick POWERED, ~11V at pin 7)
@@ -58,7 +58,9 @@ Pin 1 = upper-left. Pin 5 = upper-right. Pin 6 = lower-left. Pin 9 = lower-right
 | Pin 2 with stick movement | **4.5 V to 6.8 V** | Symmetric to pin 1. |
 | LED | Solid **green** | Joystick is happy; no fault. |
 
-## Bring-up procedure (already completed — for reference / repeat)
+## Bring-up procedure
+
+Already completed. Recorded for reference and repetition.
 
 1. **DMM-only sanity checks (joystick unpowered):**
    - Confirm pin 7 ↔ pin 8 is a moderate resistance (kΩ range), not a short or open.
@@ -67,7 +69,7 @@ Pin 1 = upper-left. Pin 5 = upper-right. Pin 6 = lower-left. Pin 9 = lower-right
 
 2. **First power-up (current-limited):**
    - 12 V supply with ~150 mA current limit, OR a 100 Ω resistor in series with pin 7 as a "soft fuse".
-   - Initial 100 Ω caused brown-out (joystick draws 30 mA, drops 3 V across 100 Ω, joystick gets only ~9 V — regulator marginal). **Symptom**: pin 7 voltage bouncing 8.5–9 V, joystick LED blinking irregularly.
+   - Initial 100 Ω caused brown-out (joystick draws 30 mA, drops 3 V across 100 Ω, joystick gets only ~9 V, leaving the regulator marginal). **Symptom**: pin 7 voltage bouncing 8.5–9 V, joystick LED blinking irregularly.
    - **Fix**: reduce series resistor to **33 Ω** (or short it after verifying no fault). At 33 Ω, joystick sees ~11 V, runs cleanly, LED solid green.
 
 3. **Voltage probing (with joystick running):**
@@ -77,4 +79,4 @@ Pin 1 = upper-left. Pin 5 = upper-right. Pin 6 = lower-left. Pin 9 = lower-right
 
 ---
 
-[← Back to the README](../README.md)
+[Back to the README](../README.md)

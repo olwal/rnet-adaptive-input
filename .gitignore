@@ -27,8 +27,12 @@ tools/_*.py
 # https://www.pjrc.com/teensy/pinout.html
 teensy30_pinout_*
 
-# Stray 75x36 export; diagram.jpg is the one that gets used
+# Stray exports; diagram.jpg is the one that gets used
 docs/diagram.png
+docs/path10.jpg
+
+# Screenshots are committed as JPEG under docs/
+shots/
 
 # Screenshots of unpublished demos
 shots/sight_*.png
