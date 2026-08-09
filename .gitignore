@@ -14,6 +14,12 @@ tools/demos/scores.json
 # Prototypes that are not ready to publish
 tools/demos/_archive/
 
+# Private working notes: motivation, people, unpublished directions
+notes/
+
+# One-shot scripts
+tools/_*.py
+
 # Third-party documents - not ours to redistribute.
 # PG Drives / Curtiss-Wright R-Net Omni technical manual (SK78813-07):
 *.pdf
