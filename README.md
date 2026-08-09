@@ -8,14 +8,15 @@ Wheelchair joysticks are robust input devices, but typically connect only to the
 over a private analogue interface.
 
 This project uses a small microcontroller between the joystick
-and a computer to overcome that limitation. It allows he computer to see the joystick as an ordinary USB peripheral without
+and a computer to overcome that limitation. It allows the computer to see the joystick as an ordinary USB peripheral without
 software or drivers to install.
 
 **Capabilities**
 
 - **Mouse.** Control a cursor, with an adjustable dead zone and
   response curve so small hand movements stay usable.
-- **Keyboard.** Send arrow keys for anything menu- or key-driven (or configure to send other keys).
+- **Keyboard.** Send arrow keys for anything menu- or key-driven. Which keys are
+  sent is one line of firmware to change.
 - **Game controller.** Emulate a standard USB gamepad, so games, flight and driving
   sims, and RC simulators see it as a normal stick.
 - **Integrate with custom software.** Raw and shaped values stream over a serial link
@@ -41,7 +42,7 @@ because these joysticks have no spare button to switch with.
 **Hardware**: a Teensy 3.0, six resistors, a 12 V bench supply, and an R-Net
 specialty joystick.
 
-**Software**: 
+**Software**:
 - **Arduino IDE 2.x with Teensyduino.** No separate toolchain install; the
   tooling drives the `arduino-cli` bundled inside the IDE.
 - **Python 3.9+** with `pyserial`. The marble game also requires `raylib`, `numpy`
