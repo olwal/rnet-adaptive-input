@@ -25,12 +25,12 @@ mismatched internal series resistors), then streams
 keyboard at once**, with the serial link still live underneath as telemetry and
 control.
 
-```powershell
-.\rnet.cmd flash -Hid           # r-net_hid + the serialhid descriptor set
-.\rnet.cmd hid                  # interactive switcher / tuner
-.\rnet.cmd hid mode gamepad
-.\rnet.cmd hid set expo 0.45
-.\rnet.cmd hid watch
+```
+.rnet flash --hid           # r-net_hid + the serialhid descriptor set
+.rnet hid                  # interactive switcher / tuner
+.rnet hid mode gamepad
+.rnet hid set expo 0.45
+.rnet hid watch
 ```
 
 USB type is a **compile-time** choice, so all five interfaces (CDC status, CDC
@@ -98,7 +98,7 @@ descriptor is correct.
 
 The HID sketch needs `teensy:avr:teensy30:usb=serialhid`. Building it under the
 plain `teensy:avr:teensy30` FQBN succeeds and produces a serial-only binary,
-which is a confusing way to find out. `-Hid` selects both the sketch and the
+which is a confusing way to find out. `--hid` selects both the sketch and the
 descriptor set together; build outputs are keyed by FQBN so the two variants
 don't collide.
 
@@ -106,13 +106,13 @@ don't collide.
 different USB device, so Windows enumerates it fresh and assigns a new port.
 COM28 became COM34 here. Everything that reads `tools/board.json` (the demos,
 `scope.py`, `crosshair.py`, `hid.py`) then points at a port that no longer
-exists. Run `.\rnet.cmd config` after the first HID flash to re-pin it.
+exists. Run `.rnet config` after the first HID flash to re-pin it.
 
 To confirm the flash actually landed, check the **PID** rather than trusting the
 uploader, which reports success even when it fell back to waiting for the
 button:
 
-```powershell
+```
 Get-CimInstance Win32_PnPEntity |
   Where-Object { $_.DeviceID -like "*VID_16C0*" } |
   Select-Object Name, DeviceID

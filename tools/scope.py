@@ -10,16 +10,14 @@ reconstructed voltages and two centre-zero bargraphs that track the stick.
 """
 
 import argparse
-import json
 import os
 import re
 import sys
 import time
-from pathlib import Path
+import rnetport
 
 try:
     import serial
-    from serial.tools import list_ports
 except ImportError:
     sys.exit("pyserial is required:  python -m pip install pyserial")
 
@@ -64,24 +62,8 @@ def enable_ansi():
 
 
 def find_port():
-    """Prefer tools/board.json, then a PJRC VID, then a lone serial port."""
-    cfg = Path(__file__).with_name("board.json")
-    if cfg.exists():
-        try:
-            # utf-8-sig: tolerate a BOM if the file was written by PowerShell.
-            port = json.loads(cfg.read_text(encoding="utf-8-sig")).get("monitorPort")
-            if port:
-                return port
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    ports = list(list_ports.comports())
-    for p in ports:
-        if p.vid == 0x16C0:          # PJRC / Teensy
-            return p.device
-    if len(ports) == 1:
-        return ports[0].device
-    return None
+    """Resolve a serial port. See tools/rnetport.py for the order."""
+    return rnetport.find_port()
 
 
 def bar(value, full_scale, half=30):

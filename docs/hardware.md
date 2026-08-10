@@ -51,14 +51,14 @@ The Omni supports both analogue and digital SIDs on the same connector, and the 
 | 1 | Joystick Speed | Forward |
 | 2 | Joystick Direction | Reverse |
 | 3 | Joystick Reference | Left |
-| 4 | — | Right |
+| 4 | - | Right |
 | 5 | Detect | Detect |
 | 6 | Fifth Switch | Fifth Switch |
 | 7 | 12 V, 100 mA | 12 V, 100 mA |
 | 8 | Joystick Ground | 0 V |
 | 9 | Connected to 7 | Connected to 7 |
 
-Two things worth drawing out. Pin 4 is only used by digital devices, which is why it reads as unconnected on this analogue joystick. And **pin 6 is officially the "Fifth Switch"** — this document calls it the MODE switch elsewhere, after its behaviour on this unit, but the manufacturer's name is the one to search for.
+Two things worth drawing out. Pin 4 is only used by digital devices, which is why it reads as unconnected on this analogue joystick. And **pin 6 is officially the "Fifth Switch".** This document calls it the MODE switch elsewhere, after its behaviour on this unit, but the manufacturer's name is the one to search for.
 
 The manual also states the Omni's own input resistance is 100 kΩ to 0 V, and that pins 7 and 9 share a 100 mA budget.
 

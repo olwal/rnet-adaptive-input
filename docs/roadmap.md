@@ -2,29 +2,69 @@
 
 What is unresolved on the hardware, and where this should go next.
 
-## Cross-platform support
+## Platform support
 
-The Python side (`scope.py`, `crosshair.py`, `hid.py` and the demo) is already
-portable and has no Windows-specific code in it. The gap is the build wrapper.
+|  | Windows | macOS | Linux | iPadOS / iOS |
+|---|---|---|---|---|
+| Mouse | yes | yes | yes | yes |
+| Keyboard | yes | yes | yes | yes |
+| Gamepad | yes (DirectInput) | yes | yes | **no** |
+| Serial telemetry and control | yes | yes | yes | **no** |
+| Build and flash | yes | untested | untested | n/a |
 
-- [ ] **Replace `rnet.ps1` with something portable.** It is PowerShell and it
-      hardcodes a Windows install path for the `arduino-cli` bundled inside
-      Arduino IDE 2.x. A Python rewrite would run everywhere and drop the
-      `rnet.cmd` shim; the logic is only board detection, FQBN selection and a
-      few `arduino-cli` invocations.
-- [ ] **Find the bundled `arduino-cli` per platform.** macOS keeps it inside
-      `Arduino IDE.app/Contents/Resources/app/lib/backend/resources/`, Linux
-      under the AppImage extract or `~/.arduinoIDE`. Falling back to
-      `arduino-cli` on `PATH` covers people who installed it standalone.
-- [ ] **Serial port naming.** `board.json` pins a `COMn` port. On macOS and
-      Linux these are `/dev/tty.usbmodem*` and `/dev/ttyACM*`; the auto-detect
-      path already handles them via `pyserial`, but the pinned-config path
-      assumes Windows naming.
-- [ ] **Verify Teensy upload off Windows.** `teensy_loader_cli` behaves
-      differently, and on Linux it needs the PJRC udev rules installed.
-- [ ] **Documentation currently shows PowerShell invocations throughout.** Once
-      the wrapper is portable, show plain `python tools/...` commands as the
-      primary form.
+USB HID is class-compliant, so the firmware needs no per-platform work. The
+host tools are plain Python.
+
+- [x] **Replace `rnet.ps1` with something portable.** Done. `tools/rnet.py`
+      runs anywhere and finds the bundled `arduino-cli` on Windows, macOS and
+      Linux, falling back to one on `PATH`. Thin `rnet` and `rnet.cmd` shims
+      call it.
+- [x] **Serial port naming.** Done. A pinned port in `board.json` is now
+      ignored if it is not actually present, so a config written on Windows
+      naming `COM34` falls through to the scan on macOS instead of failing.
+      Port discovery lives in `tools/rnetport.py` rather than in four copies.
+- [x] **Usable without a serial host.** Done. `boot` plus `save` persists a
+      mode to EEPROM, so the device arms itself. See below for why iPadOS
+      needs this.
+- [ ] **Verify build and flash on macOS and Linux.** The CLI discovery paths
+      are written but untested on real machines. On Linux the PJRC udev rules
+      have to be installed before `teensy_loader_cli` can talk to the board.
+- [ ] **A native iPad path for gamepad mode.** Generic USB HID gamepads are not
+      recognised by the Game Controller framework, which only accepts MFi and a
+      few known controllers. Mouse and keyboard modes are unaffected. There is
+      no cheap workaround.
+
+### iPadOS specifics
+
+Mouse and keyboard work over USB with no setup, and combine well with
+AssistiveTouch and Switch Control.
+
+The constraint is that iPadOS claims any standard CDC-ACM interface before a
+third-party driver can match it, and there is no entitlement exposing serial
+properties to an app. So nothing running on the iPad can send a `MODE` command,
+and the joystick has no button to do it with either.
+
+The workaround is to configure the device from a computer first:
+
+```
+rnet hid mode mouse
+rnet hid boot mouse
+rnet hid save
+```
+
+It then comes up in mouse mode wherever it is plugged in. `boot park` and
+`save` puts it back to arming nothing.
+
+### Wireless
+
+Bluetooth HID would remove the cable and the USB-C adapter, and iOS supports BLE
+keyboards and mice natively. The Teensy 3.0 has no radio, so this means a
+different board: an ESP32-S3 gives USB HID and BLE HID, an nRF52840 gives good
+BLE. The divider design is unchanged, since both are 3.3 V parts. The gamepad
+limitation is identical over BLE, so this buys wireless rather than gamepad
+support.
+
+The Teensy 3.0 is discontinued, so a board change is coming eventually anyway.
 
 ## Hardware questions
 

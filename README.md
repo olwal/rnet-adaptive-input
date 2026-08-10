@@ -2,7 +2,7 @@
 
 ### Use a wheelchair joystick as a mouse, keyboard or game controller
 
-*A bench experiment, not a mobility product — [disclaimer](#disclaimer).*
+*A bench experiment, not a mobility product. See the [disclaimer](#disclaimer).*
 
 https://github.com/user-attachments/assets/6f5dde21-41e2-4d8e-a4ac-a26c28fd4ac4
 
@@ -55,6 +55,11 @@ specialty joystick.
   python -m pip install pyserial pygame raylib numpy scipy
   ```
 
+Everything here runs on Windows, macOS and Linux. `rnet` below means `./rnet`
+on macOS and Linux, `rnet.cmd` on Windows, or `python tools/rnet.py` anywhere.
+Run `rnet doctor` first on a new machine: it reports the toolchain it found,
+the serial ports it can see, and which one it would use.
+
 ### 1. Build and flash
 
 1. Wire the dividers. The circuit, the pad map and the derivation are in
@@ -65,22 +70,33 @@ specialty joystick.
 2. Flash the multi-HID firmware:
 
    ```
-   ./rnet.cmd flash -Hid
+   rnet flash --hid
    ```
 
 3. The USB descriptor set changes, so the board comes back on a **new COM
    port**. Re-pin it once:
 
    ```
-   ./rnet.cmd config
+   rnet config
    ```
 
 It boots **parked**, driving nothing. That is deliberate: a stick that can move
 the cursor and type is a device that can do damage to the host if it drifts, so
 nothing happens until you ask for it.
 
+If you want it to come up ready to use, say so explicitly and save it to the
+board:
+
+```
+rnet hid boot mouse
+rnet hid save
+```
+
+That is also the only way to use it on a host that cannot talk to the serial
+port, such as an iPad. See [roadmap](docs/roadmap.md) for what works where.
+
 To check the raw signals instead, flash the bring-up sketch with
-`./rnet.cmd flash` and watch them with `python tools/scope.py`. More in
+`rnet flash` and watch them with `python tools/scope.py`. More in
 [firmware](docs/firmware.md).
 
 ### 2. Use it
@@ -90,8 +106,8 @@ All the interfaces are live at once; you pick which one the stick drives.
 **a) As a mouse**
 
 ```
-./rnet.cmd hid mode mouse
-./rnet.cmd hid set mousegain 900     # cursor speed, 40 to 3000
+rnet hid mode mouse
+rnet hid set mousegain 900     # cursor speed, 40 to 3000
 ```
 
 Velocity mapping, so the stick steers the cursor and lets it stop, rather than
@@ -101,37 +117,39 @@ left-click.
 **b) As a keyboard**
 
 ```
-./rnet.cmd hid mode keyboard
-./rnet.cmd hid keys wasd             # or arrows (default), ijkl, media
-./rnet.cmd hid keys up space         # or remap one direction at a time
+rnet hid mode keyboard
+rnet hid keys wasd             # or arrows (default), ijkl, media
+rnet hid keys up space         # or remap one direction at a time
 ```
 
 Separate press and release thresholds, so it does not chatter at the boundary.
-Any letter, digit or named key works — `space`, `enter`, `pageup`, `volup` and
-so on; `./rnet.cmd hid keys` shows the current mapping.
+Any letter, digit or named key works: `space`, `enter`, `pageup`, `volup` and
+so on; `rnet hid keys` shows the current mapping.
 
 **c) Playing the marble game**
 
 ```
-./rnet.cmd hid mode park             # so it is not also moving the cursor
-./rnet.cmd demo labyrinth
+rnet hid mode park             # so it is not also moving the cursor
+rnet demo labyrinth
 ```
 
 Tilt a wooden board to roll a marble to the green cup. The game reads the serial
-stream directly, which runs in every mode, so **park it first** — otherwise the
+stream directly, which runs in every mode, so **park it first**, otherwise the
 stick plays the game and drives your mouse at the same time. Only one program
 can hold the port, so set the mode before launching the game.
 
-**Everything else:** `./rnet.cmd hid` on its own opens an interactive session
-for live tuning, and `./rnet.cmd hid --help` lists every mode and setting with
-its range. Gamepad mode is `./rnet.cmd hid mode gamepad`, and it is DirectInput
-rather than XInput — see [firmware](docs/firmware.md) if a game cannot see it.
+**Everything else:** `rnet hid` on its own opens an interactive session
+for live tuning, and `rnet hid --help` lists every mode and setting with
+its range. Gamepad mode is `rnet hid mode gamepad`, and it is DirectInput
+rather than XInput; see [firmware](docs/firmware.md) if a game cannot see it.
 
 Details: [firmware and the serial protocol](docs/firmware.md) ·
 [host tooling](docs/tooling.md) · [the marble game](docs/demo-labyrinth.md)
 
-The Python tools run on any platform. The `rnet` wrapper is PowerShell only for
-now; see [roadmap](docs/roadmap.md).
+Mouse and keyboard modes work on **iPadOS and iOS** too, over USB. Gamepad mode
+does not, and nothing on the tablet can send commands, so set the mode with
+`boot` and `save` from a computer first. Details in
+[roadmap](docs/roadmap.md).
 
 ## References
 

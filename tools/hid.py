@@ -17,15 +17,13 @@ Note the port is exclusive: leave this running and uploads will fail with
 """
 
 import argparse
-import json
 import sys
 import threading
 import time
-from pathlib import Path
+import rnetport
 
 try:
     import serial
-    from serial.tools import list_ports
 except ImportError:
     sys.exit("pyserial is required:  python -m pip install pyserial")
 
@@ -99,8 +97,17 @@ def build_epilog():
              "  cal                   recentre - hold the stick still",
              "  park                  shorthand for: mode park",
              "  watch                 live telemetry, Ctrl+C to stop",
+             "  save                  persist settings to EEPROM",
+             "  load                  reload the saved settings",
+             "  defaults              restore factory values (save to keep)",
+             "  boot <name|0-3>       mode to enter at power-on, then save",
              "  <anything else>       passed verbatim to the firmware "
              "(try HELP)",
+             "",
+             "on a host with no serial access, set the mode you want, then",
+             "'boot <mode>' and 'save'. The device comes up in that mode on",
+             "its own. This is the only way to drive it from an iPad, which",
+             "claims the CDC interface so nothing on it can send commands.",
              "",
              "modes:"]
     for n, (primary, aliases, blurb) in MODE_TABLE.items():
@@ -159,20 +166,7 @@ def check_setting(name, value):
 
 
 def find_port():
-    cfg = Path(__file__).with_name("board.json")
-    if cfg.exists():
-        try:
-            port = json.loads(cfg.read_text(encoding="utf-8-sig")).get(
-                "monitorPort")
-            if port:
-                return port
-        except (json.JSONDecodeError, OSError):
-            pass
-    ports = list(list_ports.comports())
-    for p in ports:
-        if p.vid == 0x16C0:
-            return p.device
-    return ports[0].device if len(ports) == 1 else None
+    return rnetport.find_port()
 
 
 def open_port(name, baud=115200):
@@ -296,11 +290,10 @@ def translate(line):
     if not parts:
         return line
     head = parts[0].lower()
-    if head == "mode" and len(parts) > 1:
+    if head in ("mode", "boot") and len(parts) > 1:
         key = parts[1].lower()
-        if key in MODES:
-            return f"MODE {MODES[key]}"
-        return f"MODE {parts[1]}"
+        n = MODES.get(key, parts[1])
+        return f"{head.upper()} {n}"
     return line
 
 
@@ -325,8 +318,11 @@ def main():
     # Validate before touching the port. A typo should not need the port to be
     # free, and it frequently is not - a demo or scope.py will be holding it.
     head = a.args[0].lower() if a.args else ""
-    if head == "mode":
+    if head in ("mode", "boot"):
         if len(a.args) < 2:
+            if head == "boot":
+                sys.exit("usage: boot <name|0-3>   then `save` to persist\n  " +
+                         "\n  ".join(f"{n}  {p}" for n, p in MODE_NAMES.items()))
             sys.exit("usage: mode <name|0-3>\n  " +
                      "\n  ".join(f"{n}  {p}" for n, p in MODE_NAMES.items()))
         key = a.args[1].lower()

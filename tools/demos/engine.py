@@ -9,7 +9,6 @@ Every demo runs without the joystick attached (arrow keys / WASD), so they can
 be developed and shown on any machine.
 """
 
-import json
 import math
 import re
 import sys
@@ -17,6 +16,8 @@ import threading
 from pathlib import Path
 
 import pyray as rl
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import rnetport
 
 # --------------------------------------------------------------- input ------
 
@@ -28,23 +29,7 @@ FULL_SCALE = 143.0
 
 
 def _find_port():
-    try:
-        from serial.tools import list_ports
-    except ImportError:
-        return None
-    cfg = Path(__file__).resolve().parent.parent / "board.json"
-    if cfg.exists():
-        try:
-            port = json.loads(cfg.read_text(encoding="utf-8-sig")).get("monitorPort")
-            if port:
-                return port
-        except (json.JSONDecodeError, OSError):
-            pass
-    ports = list(list_ports.comports())
-    for p in ports:
-        if p.vid == 0x16C0:
-            return p.device
-    return ports[0].device if len(ports) == 1 else None
+    return rnetport.find_port()
 
 
 def shape(v, deadzone, expo):

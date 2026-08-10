@@ -13,16 +13,14 @@ Keys:  Esc quit   D debug overlay   T trail   C recentre   [ ] expo
 """
 
 import argparse
-import json
 import math
 import re
 import sys
 import threading
-from pathlib import Path
+import rnetport
 
 try:
     import serial
-    from serial.tools import list_ports
 except ImportError:
     sys.exit("pyserial is required:  python -m pip install pyserial")
 
@@ -86,20 +84,7 @@ class Reader(threading.Thread):
 
 
 def find_port():
-    cfg = Path(__file__).with_name("board.json")
-    if cfg.exists():
-        try:
-            # utf-8-sig: tolerate a BOM if the file was written by PowerShell.
-            port = json.loads(cfg.read_text(encoding="utf-8-sig")).get("monitorPort")
-            if port:
-                return port
-        except (json.JSONDecodeError, OSError):
-            pass
-    ports = list(list_ports.comports())
-    for p in ports:
-        if p.vid == 0x16C0:
-            return p.device
-    return ports[0].device if len(ports) == 1 else None
+    return rnetport.find_port()
 
 
 def shape(v, deadzone, expo):

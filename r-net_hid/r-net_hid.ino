@@ -15,6 +15,14 @@
 //
 // Serial carries telemetry in every mode, in the same format the host tools
 // already parse, and accepts commands. Type HELP into any terminal.
+//
+// Settings persist to EEPROM with SAVE, which matters for hosts that cannot
+// talk to the serial port at all. iPadOS claims any CDC-ACM interface before a
+// third-party app can reach it, so an iPad can use the keyboard and mouse
+// interfaces but can never send a MODE command. Configure it from a computer,
+// SAVE, then plug it into the tablet.
+
+#include <EEPROM.h>
 
 // ----------------------------------------------------------------- pins ----
 
@@ -57,6 +65,12 @@ bool k_up = false, k_dn = false, k_lf = false, k_rt = false;
 // Which key each direction sends. Remappable at runtime; see the KEYS command.
 uint16_t key_up = KEY_UP, key_dn = KEY_DOWN;
 uint16_t key_lf = KEY_LEFT, key_rt = KEY_RIGHT;
+
+// Mode entered at power-on. Defaults to PARKED and stays there unless someone
+// deliberately changes it: a stick that types and moves the cursor the instant
+// it is plugged in is not something to opt people into by accident. Setting it
+// is what makes the device usable on a host with no serial access.
+uint8_t cfg_boot = MODE_PARKED;
 
 // Only the keys that need a name. Letters and digits are contiguous in the
 // HID usage table, so they are decoded arithmetically rather than listed.
@@ -249,6 +263,69 @@ static void set_keys(uint16_t u, uint16_t d, uint16_t l, uint16_t r) {
   key_up = u; key_dn = d; key_lf = l; key_rt = r;
 }
 
+// ------------------------------------------------------------- storage -----
+
+// Magic and version guard against reading a blank or stale EEPROM as settings.
+// Bump VERSION whenever the struct changes and old saves are ignored rather
+// than misinterpreted field by field.
+const uint16_t EE_MAGIC = 0x524E;      // 'RN'
+const uint8_t  EE_VERSION = 1;
+const int      EE_ADDR = 0;
+
+struct Settings {
+  uint16_t magic;
+  uint8_t  version;
+  uint8_t  boot_mode;
+  float    deadzone, expo, slew, mousegain, keyon, keyoff;
+  uint8_t  inverty;
+  uint16_t k_up, k_dn, k_lf, k_rt;
+};
+
+static void settings_save() {
+  Settings s;
+  s.magic = EE_MAGIC;
+  s.version = EE_VERSION;
+  s.boot_mode = cfg_boot;
+  s.deadzone = cfg_deadzone;
+  s.expo = cfg_expo;
+  s.slew = cfg_slew;
+  s.mousegain = cfg_mousegain;
+  s.keyon = cfg_keyon;
+  s.keyoff = cfg_keyoff;
+  s.inverty = cfg_inverty ? 1 : 0;
+  s.k_up = key_up; s.k_dn = key_dn; s.k_lf = key_lf; s.k_rt = key_rt;
+  EEPROM.put(EE_ADDR, s);
+  Serial.println(F("# saved"));
+}
+
+static bool settings_load() {
+  Settings s;
+  EEPROM.get(EE_ADDR, s);
+  if (s.magic != EE_MAGIC || s.version != EE_VERSION) return false;
+
+  // Clamp on the way in. A corrupt or hand-edited EEPROM should not be able
+  // to produce a deadzone of NaN and a stick that never reports centre.
+  cfg_boot      = s.boot_mode < MODE_COUNT ? s.boot_mode : MODE_PARKED;
+  cfg_deadzone  = constrain(s.deadzone,  0.0f,  0.45f);
+  cfg_expo      = constrain(s.expo,      0.0f,  0.95f);
+  cfg_slew      = constrain(s.slew,      0.5f,  60.0f);
+  cfg_mousegain = constrain(s.mousegain, 40.0f, 3000.0f);
+  cfg_keyon     = constrain(s.keyon,     0.1f,  0.95f);
+  cfg_keyoff    = constrain(s.keyoff,    0.05f, 0.90f);
+  if (cfg_keyoff >= cfg_keyon) cfg_keyoff = cfg_keyon * 0.72f;
+  cfg_inverty   = s.inverty != 0;
+  key_up = s.k_up; key_dn = s.k_dn; key_lf = s.k_lf; key_rt = s.k_rt;
+  return true;
+}
+
+static void settings_defaults() {
+  cfg_boot = MODE_PARKED;
+  cfg_deadzone = 0.06f; cfg_expo = 0.35f; cfg_slew = 6.0f;
+  cfg_mousegain = 620.0f; cfg_keyon = 0.55f; cfg_keyoff = 0.40f;
+  cfg_inverty = false;
+  key_up = KEY_UP; key_dn = KEY_DOWN; key_lf = KEY_LEFT; key_rt = KEY_RIGHT;
+}
+
 static void report_config() {
   Serial.print(F("# cfg deadzone=")); Serial.print(cfg_deadzone, 3);
   Serial.print(F(" expo="));          Serial.print(cfg_expo, 3);
@@ -257,7 +334,8 @@ static void report_config() {
   Serial.print(F(" keyon="));         Serial.print(cfg_keyon, 2);
   Serial.print(F(" keyoff="));        Serial.print(cfg_keyoff, 2);
   Serial.print(F(" inverty="));       Serial.print(cfg_inverty ? 1 : 0);
-  Serial.print(F(" mode="));          Serial.println(mode);
+  Serial.print(F(" mode="));          Serial.print(mode);
+  Serial.print(F(" boot="));          Serial.println(cfg_boot);
 }
 
 static bool assign(const char *name, const char *want, float *dst, float v,
@@ -281,6 +359,28 @@ static void handle(char *line) {
   } else if (!strcmp(line, "GET")) {
     report_config();
     report_keys();
+  } else if (!strcmp(line, "SAVE")) {
+    settings_save();
+  } else if (!strcmp(line, "LOAD")) {
+    Serial.println(settings_load() ? F("# loaded") : F("# nothing saved"));
+    report_config();
+  } else if (!strcmp(line, "DEFAULTS")) {
+    settings_defaults();
+    Serial.println(F("# defaults restored (SAVE to persist)"));
+    report_config();
+  } else if (!strncmp(line, "BOOT", 4)) {
+    char *p = line + 4;
+    while (*p == ' ') p++;
+    if (*p) {
+      int m = atoi(p);
+      if (m >= 0 && m < MODE_COUNT) {
+        cfg_boot = (uint8_t)m;
+        Serial.println(F("# boot mode set (SAVE to persist)"));
+      } else {
+        Serial.println(F("# boot mode must be 0..3"));
+      }
+    }
+    Serial.print(F("# boot=")); Serial.println(cfg_boot);
   } else if (!strncmp(line, "KEYS", 4)) {
     char *p = line + 4;
     while (*p == ' ') p++;
@@ -351,6 +451,8 @@ static void handle(char *line) {
   } else if (!strcmp(line, "HELP") || !strcmp(line, "?")) {
     Serial.println(F("# MODE 0..3  (0 parked, 1 gamepad, 2 mouse, 3 keyboard)"));
     Serial.println(F("# PARK | CAL | GET | HELP"));
+    Serial.println(F("# SAVE | LOAD | DEFAULTS | BOOT 0..3   (BOOT then SAVE"));
+    Serial.println(F("#   to come up in that mode with no serial host)"));
     Serial.println(F("# SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty <v>"));
     Serial.println(F("# KEYS [arrows|wasd|ijkl|media]"));
     Serial.println(F("# KEYS <up|down|left|right> <A-Z|0-9|space|enter|esc|"
@@ -385,12 +487,25 @@ void setup() {
 
   Joystick.useManualSend(true);   // one coherent report per tick
 
+  bool restored = settings_load();
+
   delay(400);
   calibrate();
   neutralise();
 
+  // Arm the saved mode only after calibrate() has a centre to work from,
+  // otherwise the first frames drive the host from an uncalibrated stick.
+  if (cfg_boot != MODE_PARKED) set_mode(cfg_boot);
+
   Serial.println(F("=== R-Net multi-HID bridge ==="));
-  Serial.println(F("# parked. MODE 1 gamepad, 2 mouse, 3 keyboard. HELP for more."));
+  if (restored) Serial.println(F("# settings restored from EEPROM"));
+  if (mode == MODE_PARKED) {
+    Serial.println(F("# parked. MODE 1 gamepad, 2 mouse, 3 keyboard. "
+                     "HELP for more."));
+  } else {
+    Serial.print(F("# armed at boot in mode ")); Serial.print(mode);
+    Serial.println(F(". PARK to stop it. BOOT 0 then SAVE to undo."));
+  }
 }
 
 void loop() {

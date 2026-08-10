@@ -4,31 +4,43 @@ Building and flashing without a separate toolchain, plus the scope, the shaping 
 
 ## Command-line toolchain
 
-No separate toolchain install is needed. `tools/rnet.ps1` wraps the `arduino-cli`
-that ships inside Arduino IDE 2.x at
-`C:/Z/apps/dev/arduino-ide_2.3.4_Windows_64bit/resources/app/lib/backend/resources/arduino-cli.exe`.
+No separate toolchain install is needed. `tools/rnet.py` wraps the `arduino-cli`
+that ships inside Arduino IDE 2.x, locating it per platform and falling back to
+one on `PATH`. Set `ARDUINO_CLI` to override.
 
-```powershell
-.\rnet.cmd doctor      # toolchain, paths, installed cores, detected boards
-.\rnet.cmd boards      # what's plugged in right now
-.\rnet.cmd build       # compile
-.\rnet.cmd flash       # compile + upload
-.\rnet.cmd monitor     # serial monitor @ 115200 (Ctrl+C to exit)
-.\rnet.cmd run         # compile + upload + monitor
+```
+python tools/rnet.py doctor    # toolchain, paths, ports, cores, boards
+python tools/rnet.py boards    # what is plugged in right now
+python tools/rnet.py build     # compile
+python tools/rnet.py flash     # compile and upload
+python tools/rnet.py monitor   # serial monitor at 115200 (Ctrl+C to exit)
+python tools/rnet.py run       # compile, upload, monitor
 ```
 
-`rnet.cmd` is a shim for cmd/Git Bash; call `tools\rnet.ps1` directly from PowerShell.
+Shims in the project root shorten that to `./rnet doctor` on macOS and Linux
+and `rnet.cmd doctor` on Windows. The rest of this page uses the long form,
+which works everywhere.
+
+`doctor` is the one to run first on a new machine: it reports the platform, the
+Python and `arduino-cli` it found, whether `pyserial` is installed, every serial
+port it can see, and which one it would pick.
 
 Board and port auto-detect from whatever is attached. To pin them:
 
-```powershell
-.\rnet.cmd config                          # save currently-detected board/port
-.\rnet.cmd config -Fqbn arduino:avr:uno -Port COM5
+```
+python tools/rnet.py config                                # save what is detected
+python tools/rnet.py config --fqbn arduino:avr:uno --port COM5
 ```
 
-Resolution order is `-Fqbn`/`-Port` → `tools/board.json` → `$env:RNET_FQBN`/`$env:RNET_PORT` → auto-detect.
-Unrecognised trailing arguments pass through to `arduino-cli` (`.\rnet.cmd build --warnings all`),
-and `.\rnet.cmd cli <args>` is a raw passthrough for anything not wrapped.
+Resolution order is `--fqbn`/`--port`, then `tools/board.json`, then
+`RNET_FQBN`/`RNET_PORT`, then auto-detect. **A pinned port that is not present
+is ignored rather than fatal**, so a `board.json` written on Windows naming
+`COM34` still works on a Mac, where the same board appears as
+`/dev/cu.usbmodem*`.
+
+Unrecognised trailing arguments pass through to `arduino-cli`
+(`python tools/rnet.py build --warnings all`), and
+`python tools/rnet.py cli <args>` is a raw passthrough.
 
 Sketch lives in `r-net_test/r-net_test.ino` (Arduino requires the folder name to
 match). Build artifacts go to `build/<sketch>.<fqbn>/`, one directory per target.
@@ -41,11 +53,11 @@ Python 3 with `pyserial` and `pygame` (`python -m pip install pyserial pygame`).
 **`tools/scope.py`**: live ASCII scope. Raw counts, ADC volts, reconstructed
 joystick volts, and two centre-zero bargraphs.
 
-```powershell
-.\rnet.cmd scope                 # live display, Ctrl+C to exit
-.\rnet.cmd scope --once          # one frame, scriptable snapshot
-.\rnet.cmd scope --sample 10     # N parsed lines, non-interactive
-.\rnet.cmd scope --analyze 20    # capture + crosstalk statistics
+```
+.rnet scope                 # live display, Ctrl+C to exit
+.rnet scope --once          # one frame, scriptable snapshot
+.rnet scope --sample 10     # N parsed lines, non-interactive
+.rnet scope --analyze 20    # capture + crosstalk statistics
 ```
 
 `--analyze` is the diagnostic: sweep **one** axis fully, leave the other centred,
@@ -57,9 +69,9 @@ the axes are independent and any Vref movement is common-mode that cancels in
 = screen centre, full deflection = screen edge). The stick self-centres so the
 crosshair springs home on release.
 
-```powershell
-python tools\crosshair.py
-python tools\crosshair.py --windowed --deadzone 0.06 --expo 0.4
+```
+python tools/crosshair.py
+python tools/crosshair.py --windowed --deadzone 0.06 --expo 0.4
 ```
 
 Keys: `Esc` quit, `D` debug overlay, `T` trail, `C` recentre, `[` `]` expo,
@@ -80,12 +92,12 @@ Shared by every demo (they all sit on `engine.py`), and by `crosshair.py`.
 | `F11` or `F` | toggle fullscreen / windowed |
 | `M` | next monitor (`Shift+M` for previous) |
 
-```powershell
-.\rnet.cmd demo rally --list-monitors        # what's attached
-.\rnet.cmd demo rally --monitor 1            # fullscreen on the second screen
-.\rnet.cmd demo rally --windowed             # windowed on the current screen
-.\rnet.cmd demo rally --windowed --width 1600 --height 900
-.\rnet.cmd demo rally --exclusive            # true fullscreen, not borderless
+```
+.rnet demo rally --list-monitors        # what's attached
+.rnet demo rally --monitor 1            # fullscreen on the second screen
+.rnet demo rally --windowed             # windowed on the current screen
+.rnet demo rally --windowed --width 1600 --height 900
+.rnet demo rally --exclusive            # true fullscreen, not borderless
 ```
 
 Fullscreen defaults to **borderless**, which is far more reliable across two

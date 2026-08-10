@@ -6,9 +6,9 @@ dropping into a hole.
 
 ![Level 1](labyrinth-level-1.jpg)
 
-```powershell
-.\rnet.cmd demo labyrinth                          # fullscreen
-.\rnet.cmd demo labyrinth --level 6 --timer        # start on 6, clock running
+```
+.rnet demo labyrinth                          # fullscreen
+.rnet demo labyrinth --level 6 --timer        # start on 6, clock running
 ```
 
 ## Controls
