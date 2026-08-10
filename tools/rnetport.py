@@ -8,10 +8,60 @@ found the board immediately.
 """
 
 import json
+import os
+import sys
 from pathlib import Path
 
 PJRC_VID = 0x16C0
-CONFIG = Path(__file__).resolve().parent / "board.json"
+FROZEN = getattr(sys, "frozen", False)
+
+# Markers that identify a checkout of this project.
+_MARKERS = ("tools", "r-net_test")
+
+
+def find_checkout(start=None):
+    """Walk upward looking for a project checkout, or None."""
+    if start is None:
+        start = Path(sys.executable).resolve().parent if FROZEN else \
+            Path(__file__).resolve().parent
+    for base in (Path.cwd(), Path(start)):
+        for d in (base, *base.parents):
+            if all((d / m).exists() for m in _MARKERS):
+                return d
+    return None
+
+
+def user_config_dir():
+    """Per-user config location, for a released binary run outside a checkout."""
+    if os.name == "nt":
+        base = Path(os.environ.get("APPDATA", Path.home() / "AppData/Roaming"))
+    elif sys.platform == "darwin":
+        base = Path.home() / "Library" / "Application Support"
+    else:
+        base = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    return base / "rnet"
+
+
+def config_path():
+    """Where board.json lives.
+
+    In a checkout it sits in tools/ next to this file. A frozen build cannot
+    use __file__ for this: PyInstaller unpacks to a temporary directory, so
+    the path would resolve inside %TEMP% and the config would vanish between
+    runs. Prefer a checkout if the binary is being run inside one, otherwise
+    fall back to the user's config directory.
+    """
+    if not FROZEN:
+        return Path(__file__).resolve().parent / "board.json"
+    root = find_checkout()
+    if root:
+        return root / "tools" / "board.json"
+    d = user_config_dir()
+    d.mkdir(parents=True, exist_ok=True)
+    return d / "board.json"
+
+
+CONFIG = config_path()
 
 
 def load_config(path=CONFIG):

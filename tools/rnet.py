@@ -26,10 +26,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rnetport
 
-ROOT = Path(__file__).resolve().parent.parent
+# A frozen build has no source tree, so the project root has to be discovered
+# rather than derived from __file__, which PyInstaller points at a temp dir.
+# Without a checkout the runtime commands (scope, hid, monitor, boards) still
+# work; only the ones that need sketch sources cannot.
+ROOT = rnetport.find_checkout()
+HAVE_SOURCES = ROOT is not None
+if ROOT is None:
+    ROOT = Path.cwd()
+
 TOOLS = ROOT / "tools"
 BUILD_ROOT = ROOT / "build"
-CONFIG = TOOLS / "board.json"
+CONFIG = rnetport.config_path()
 
 TEST_SKETCH = ROOT / "r-net_test"
 HID_SKETCH = ROOT / "r-net_hid"
@@ -185,6 +193,12 @@ def resolve_serial_port(a):
 
 
 def resolve_sketch(a):
+    if not HAVE_SOURCES and not a.sketch:
+        raise Fail(
+            "No project checkout found, so there are no sketches to build.\n"
+            "  This binary can still do: scope, hid, monitor, boards, config,\n"
+            "  doctor. To build or flash, run it from a clone of the repo, or\n"
+            "  pass --sketch <path>.")
     if a.sketch:
         p = Path(a.sketch)
     elif a.hid:
@@ -400,6 +414,9 @@ def cmd_doctor(a):
     return 0
 
 
+# Commands whose arguments belong entirely to another program.
+PASSTHROUGH = {"scope", "hid", "demo", "cli"}
+
 COMMANDS = {
     "boards": (cmd_boards, "list attached boards and ports"),
     "build": (cmd_build, "compile the sketch"),
@@ -436,10 +453,13 @@ def main(argv=None):
         "  >  auto-detect. A pinned port that is not present is ignored, so a",
         "  config written on one machine still works on another.",
     ]
+    # add_help=False so that `rnet scope --help` reaches scope rather than
+    # being swallowed by this parser and printing the wrapper's own help.
     p = argparse.ArgumentParser(
         prog="rnet", description=__doc__.split("\n\n")[0],
-        epilog="\n".join(epilog),
+        epilog="\n".join(epilog), add_help=False,
         formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("-h", "--help", action="store_true", dest="want_help")
     p.add_argument("command", nargs="?", default="help",
                    help="one of: " + ", ".join(COMMANDS))
     p.add_argument("--sketch")
@@ -449,10 +469,23 @@ def main(argv=None):
     p.add_argument("--clean", action="store_true")
     p.add_argument("--hid", action="store_true",
                    help="target r-net_hid and the serialhid descriptor set")
-    a, rest = p.parse_known_args(argv)
-    a.rest = rest
+    args = list(sys.argv[1:] if argv is None else argv)
+    # `scope`, `hid`, `demo` and `cli` hand their whole tail to another
+    # program, so nothing after those may be interpreted here: otherwise
+    # `rnet scope --help` prints this help instead of scope's, and
+    # `rnet demo labyrinth --port X` would be eaten twice. Every other command
+    # takes this wrapper's own flags wherever they appear, so that
+    # `rnet flash --hid` keeps working.
+    head = next((t for t in args if not t.startswith("-")), None)
+    if head in PASSTHROUGH:
+        cut = args.index(head)
+        a = p.parse_args(args[:cut + 1])
+        a.rest = args[cut + 1:]
+    else:
+        a, rest = p.parse_known_args(args)
+        a.rest = rest
 
-    if a.command in ("help", "-h", "--help"):
+    if a.want_help or a.command in ("help", "-h", "--help"):
         p.print_help()
         return 0
     if a.command not in COMMANDS:

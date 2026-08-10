@@ -1,0 +1,111 @@
+name: release
+
+# Runs when a version tag is pushed, and can also be run by hand from the
+# Actions tab to check the build without cutting a release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write        # needed to create the release and attach files
+
+jobs:
+  build:
+    name: ${{ matrix.asset }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false   # one platform failing should not hide the others
+      matrix:
+        include:
+          - os: windows-latest
+            asset: rnet-windows-x64.exe
+            binary: rnet.exe
+          - os: macos-latest        # Apple silicon
+            asset: rnet-macos-arm64.tar.gz
+            binary: rnet
+          - os: macos-13            # Intel
+            asset: rnet-macos-x64.tar.gz
+            binary: rnet
+          - os: ubuntu-latest
+            asset: rnet-linux-x64.tar.gz
+            binary: rnet
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: python -m pip install --upgrade pip pyinstaller pyserial
+
+      - name: Build
+        run: >
+          python -m PyInstaller packaging/rnet.spec
+          --distpath dist --workpath build-pyi --noconfirm
+
+      # Catches the failure mode that matters: a binary that builds but cannot
+      # import pyserial or enumerate ports. doctor exercises both and returns 0
+      # even with no board attached.
+      - name: Smoke test
+        shell: bash
+        run: ./dist/${{ matrix.binary }} doctor
+
+      - name: Package
+        shell: bash
+        run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            mv "dist/${{ matrix.binary }}" "${{ matrix.asset }}"
+          else
+            # tar rather than a bare binary: zip and upload-artifact both drop
+            # the executable bit, and a download users have to chmod is a
+            # papercut.
+            tar -czf "${{ matrix.asset }}" -C dist "${{ matrix.binary }}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: ${{ matrix.asset }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Attach to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          body: |
+            Standalone `rnet` build. No Python installation required.
+
+            | Platform | Download |
+            |---|---|
+            | Windows | `rnet-windows-x64.exe` |
+            | macOS, Apple silicon | `rnet-macos-arm64.tar.gz` |
+            | macOS, Intel | `rnet-macos-x64.tar.gz` |
+            | Linux | `rnet-linux-x64.tar.gz` |
+
+            Includes `rnet`, `scope` and `hid`. The marble game is not bundled;
+            it needs raylib, numpy and scipy, and a Python install.
+
+            Building and flashing firmware needs the sketch sources, so run the
+            binary from a clone of this repository for those. Everything else
+            works standalone.
+
+            These binaries are unsigned. Windows SmartScreen will warn on first
+            run. On macOS, clear the quarantine flag before running:
+
+            ```
+            xattr -d com.apple.quarantine rnet
+            ```

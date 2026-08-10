@@ -1,5 +1,10 @@
 # Build output
 build/
+build-pyi/
+dist/
+packaging/build/
+packaging/dist/
+*.spec.bak
 
 # Python
 __pycache__/
