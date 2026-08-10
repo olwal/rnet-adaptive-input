@@ -2,6 +2,8 @@
 
 ### Use a wheelchair joystick as a mouse, keyboard or game controller
 
+*A bench experiment, not a mobility product — [disclaimer](#disclaimer).*
+
 https://github.com/user-attachments/assets/6f5dde21-41e2-4d8e-a4ac-a26c28fd4ac4
 
 Wheelchair joysticks are robust input devices, but typically connect only to their own wheelchair controller,
@@ -15,15 +17,16 @@ software or drivers to install.
 
 - **Mouse.** Control a cursor, with an adjustable dead zone and
   response curve so small hand movements stay usable.
-- **Keyboard.** Send arrow keys for anything menu- or key-driven. Which keys are
-  sent is one line of firmware to change.
+- **Keyboard.** Send arrow keys for anything menu- or key-driven, or remap the
+  four directions to any letter, digit, or named key at runtime.
 - **Game controller.** Emulate a standard USB gamepad, so games, flight and driving
   sims, and RC simulators see it as a normal stick.
 - **Integrate with custom software.** Raw and shaped values stream over a serial link
   the whole time, whatever mode it is in.
 
-All four run at once and you switch between them from a small command-line tool,
-because these joysticks have no spare button to switch with.
+All of them are available at once. A small command-line tool selects which
+interface the stick drives, because these joysticks have no spare button to
+switch with; the serial stream runs regardless of the mode.
 
 | Page | Contents |
 |---|---|
@@ -99,10 +102,13 @@ left-click.
 
 ```
 ./rnet.cmd hid mode keyboard
+./rnet.cmd hid keys wasd             # or arrows (default), ijkl, media
+./rnet.cmd hid keys up space         # or remap one direction at a time
 ```
 
-Arrow keys, with separate press and release thresholds so it does not chatter at
-the boundary.
+Separate press and release thresholds, so it does not chatter at the boundary.
+Any letter, digit or named key works — `space`, `enter`, `pageup`, `volup` and
+so on; `./rnet.cmd hid keys` shows the current mapping.
 
 **c) Playing the marble game**
 

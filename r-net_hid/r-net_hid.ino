@@ -54,6 +54,55 @@ float mouse_rx = 0.0f, mouse_ry = 0.0f;
 // Latched key state, so hysteresis has something to be hysteretic about.
 bool k_up = false, k_dn = false, k_lf = false, k_rt = false;
 
+// Which key each direction sends. Remappable at runtime; see the KEYS command.
+uint16_t key_up = KEY_UP, key_dn = KEY_DOWN;
+uint16_t key_lf = KEY_LEFT, key_rt = KEY_RIGHT;
+
+// Only the keys that need a name. Letters and digits are contiguous in the
+// HID usage table, so they are decoded arithmetically rather than listed.
+struct KeyName { const char *name; uint16_t code; };
+static const KeyName KEY_NAMES[] = {
+  {"UP", KEY_UP}, {"DOWN", KEY_DOWN}, {"LEFT", KEY_LEFT}, {"RIGHT", KEY_RIGHT},
+  {"SPACE", KEY_SPACE}, {"ENTER", KEY_ENTER}, {"ESC", KEY_ESC},
+  {"TAB", KEY_TAB}, {"BACKSPACE", KEY_BACKSPACE}, {"DELETE", KEY_DELETE},
+  {"HOME", KEY_HOME}, {"END", KEY_END},
+  {"PAGEUP", KEY_PAGE_UP}, {"PAGEDOWN", KEY_PAGE_DOWN},
+  {"VOLUP", KEY_MEDIA_VOLUME_INC}, {"VOLDOWN", KEY_MEDIA_VOLUME_DEC},
+  {"NEXT", KEY_MEDIA_NEXT_TRACK}, {"PREV", KEY_MEDIA_PREV_TRACK},
+  {"PLAY", KEY_MEDIA_PLAY_PAUSE},
+};
+static const uint8_t KEY_NAME_COUNT = sizeof(KEY_NAMES) / sizeof(KEY_NAMES[0]);
+
+// Returns 0 for an unrecognised name; no real key maps to 0.
+static uint16_t key_from_name(const char *s) {
+  if (!s || !s[0]) return 0;
+  if (!s[1]) {                                   // single character
+    char c = s[0];
+    if (c >= 'A' && c <= 'Z') return KEY_A + (c - 'A');
+    if (c >= '1' && c <= '9') return KEY_1 + (c - '1');
+    if (c == '0') return KEY_0;
+    return 0;
+  }
+  for (uint8_t i = 0; i < KEY_NAME_COUNT; i++)
+    if (!strcmp(s, KEY_NAMES[i].name)) return KEY_NAMES[i].code;
+  return 0;
+}
+
+static void key_to_name(uint16_t code, char *out, size_t n) {
+  for (uint8_t i = 0; i < KEY_NAME_COUNT; i++) {
+    if (KEY_NAMES[i].code == code) {
+      strncpy(out, KEY_NAMES[i].name, n - 1);
+      out[n - 1] = 0;
+      return;
+    }
+  }
+  uint16_t usage = code & 0x00FF;
+  if (usage >= 4 && usage <= 29)  { out[0] = 'A' + (usage - 4);  out[1] = 0; return; }
+  if (usage >= 30 && usage <= 38) { out[0] = '1' + (usage - 30); out[1] = 0; return; }
+  if (usage == 39)                { out[0] = '0';                out[1] = 0; return; }
+  snprintf(out, n, "0x%04X", code);
+}
+
 char cmd[64];
 uint8_t cmd_len = 0;
 
@@ -172,13 +221,33 @@ static void drive_keyboard() {
   bool lf = latch(k_lf, -sx);
   bool rt = latch(k_rt, sx);
 
-  if (up != k_up) { up ? Keyboard.press(KEY_UP)    : Keyboard.release(KEY_UP);    k_up = up; }
-  if (dn != k_dn) { dn ? Keyboard.press(KEY_DOWN)  : Keyboard.release(KEY_DOWN);  k_dn = dn; }
-  if (lf != k_lf) { lf ? Keyboard.press(KEY_LEFT)  : Keyboard.release(KEY_LEFT);  k_lf = lf; }
-  if (rt != k_rt) { rt ? Keyboard.press(KEY_RIGHT) : Keyboard.release(KEY_RIGHT); k_rt = rt; }
+  if (up != k_up) { up ? Keyboard.press(key_up) : Keyboard.release(key_up); k_up = up; }
+  if (dn != k_dn) { dn ? Keyboard.press(key_dn) : Keyboard.release(key_dn); k_dn = dn; }
+  if (lf != k_lf) { lf ? Keyboard.press(key_lf) : Keyboard.release(key_lf); k_lf = lf; }
+  if (rt != k_rt) { rt ? Keyboard.press(key_rt) : Keyboard.release(key_rt); k_rt = rt; }
 }
 
 // -------------------------------------------------------------- commands ---
+
+static void report_keys() {
+  char u[12], d[12], l[12], r[12];
+  key_to_name(key_up, u, sizeof(u));
+  key_to_name(key_dn, d, sizeof(d));
+  key_to_name(key_lf, l, sizeof(l));
+  key_to_name(key_rt, r, sizeof(r));
+  Serial.print(F("# keys up=")); Serial.print(u);
+  Serial.print(F(" down="));     Serial.print(d);
+  Serial.print(F(" left="));     Serial.print(l);
+  Serial.print(F(" right="));    Serial.println(r);
+}
+
+// Remapping while a key is held would strand it down at the OS level, so
+// everything is released first.
+static void set_keys(uint16_t u, uint16_t d, uint16_t l, uint16_t r) {
+  Keyboard.releaseAll();
+  k_up = k_dn = k_lf = k_rt = false;
+  key_up = u; key_dn = d; key_lf = l; key_rt = r;
+}
 
 static void report_config() {
   Serial.print(F("# cfg deadzone=")); Serial.print(cfg_deadzone, 3);
@@ -211,6 +280,48 @@ static void handle(char *line) {
     calibrate();
   } else if (!strcmp(line, "GET")) {
     report_config();
+    report_keys();
+  } else if (!strncmp(line, "KEYS", 4)) {
+    char *p = line + 4;
+    while (*p == ' ') p++;
+    if (!*p) {                                   // KEYS -> report
+      report_keys();
+    } else if (!strcmp(p, "ARROWS")) {
+      set_keys(KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT);
+      report_keys();
+    } else if (!strcmp(p, "WASD")) {
+      set_keys(KEY_W, KEY_S, KEY_A, KEY_D);
+      report_keys();
+    } else if (!strcmp(p, "IJKL")) {
+      set_keys(KEY_I, KEY_K, KEY_J, KEY_L);
+      report_keys();
+    } else if (!strcmp(p, "MEDIA")) {
+      set_keys(KEY_MEDIA_VOLUME_INC, KEY_MEDIA_VOLUME_DEC,
+               KEY_MEDIA_PREV_TRACK, KEY_MEDIA_NEXT_TRACK);
+      report_keys();
+    } else {
+      // KEYS <direction> <keyname>
+      char *dir = p;
+      while (*p && *p != ' ') p++;
+      bool have = (*p != 0);
+      if (have) *p++ = 0;
+      while (*p == ' ') p++;
+      uint16_t code = have ? key_from_name(p) : 0;
+      if (!code) {
+        Serial.println(F("# usage: KEYS [arrows|wasd|ijkl|media] "
+                         "| KEYS <up|down|left|right> <key>"));
+      } else if (!strcmp(dir, "UP")) {
+        set_keys(code, key_dn, key_lf, key_rt); report_keys();
+      } else if (!strcmp(dir, "DOWN")) {
+        set_keys(key_up, code, key_lf, key_rt); report_keys();
+      } else if (!strcmp(dir, "LEFT")) {
+        set_keys(key_up, key_dn, code, key_rt); report_keys();
+      } else if (!strcmp(dir, "RIGHT")) {
+        set_keys(key_up, key_dn, key_lf, code); report_keys();
+      } else {
+        Serial.println(F("# direction must be up, down, left or right"));
+      }
+    }
   } else if (!strncmp(line, "SET", 3)) {
     // Hand-rolled rather than sscanf("%f"): newlib-nano, which the Teensy
     // toolchain links by default, ships without float support in scanf and
@@ -241,6 +352,9 @@ static void handle(char *line) {
     Serial.println(F("# MODE 0..3  (0 parked, 1 gamepad, 2 mouse, 3 keyboard)"));
     Serial.println(F("# PARK | CAL | GET | HELP"));
     Serial.println(F("# SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty <v>"));
+    Serial.println(F("# KEYS [arrows|wasd|ijkl|media]"));
+    Serial.println(F("# KEYS <up|down|left|right> <A-Z|0-9|space|enter|esc|"
+                     "tab|home|end|pageup|pagedown|volup|voldown|play|next|prev>"));
   } else if (line[0]) {
     Serial.println(F("# ? try HELP"));
   }

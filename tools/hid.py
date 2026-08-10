@@ -69,6 +69,22 @@ SETTINGS = {
 }
 
 
+# Keyboard-mode remapping. Presets plus per-direction assignment; the firmware
+# validates key names, so this list is for help text and typo-catching only.
+KEY_PRESETS = {
+    "arrows": "cursor keys (default)",
+    "wasd":   "W S A D",
+    "ijkl":   "I K J L",
+    "media":  "volume up/down, previous/next track",
+}
+DIRECTIONS = ("up", "down", "left", "right")
+KEY_NAMES = (
+    "A-Z", "0-9", "space", "enter", "esc", "tab", "backspace", "delete",
+    "home", "end", "pageup", "pagedown",
+    "volup", "voldown", "play", "next", "prev",
+)
+
+
 def _fmt(v):
     return f"{v:g}"
 
@@ -77,6 +93,8 @@ def build_epilog():
     lines = ["commands:",
              "  mode <name|0-3>       switch the active interface",
              "  set <name> <value>    change a shaping parameter",
+             "  keys <preset>         remap keyboard mode in one go",
+             "  keys <dir> <key>      remap a single direction",
              "  get                   print the firmware's current config",
              "  cal                   recentre - hold the stick still",
              "  park                  shorthand for: mode park",
@@ -95,6 +113,14 @@ def build_epilog():
         u = f" {unit}" if unit else ""
         lines.append(f"  {name:<10} {rng:<14}{u:<9} [{scope}] {blurb}")
 
+    lines += ["", "keyboard-mode presets:"]
+    for name, blurb in KEY_PRESETS.items():
+        lines.append(f"  {name:<10} {blurb}")
+    lines += [
+        f"  directions: {', '.join(DIRECTIONS)}",
+        f"  key names:  {', '.join(KEY_NAMES)}",
+    ]
+
     lines += [
         "",
         "examples:",
@@ -104,6 +130,9 @@ def build_epilog():
         "  hid.py set expo 0.45          more travel before it bites",
         "  hid.py set mousegain 900      faster cursor",
         "  hid.py set deadzone 0.09      wider centre if the stick drifts",
+        "  hid.py keys wasd              keyboard mode sends W S A D",
+        "  hid.py keys up space          just the up direction sends space",
+        "  hid.py keys                   show the current mapping",
         "  hid.py cal                    recentre at rest",
         "  hid.py get                    read back everything",
         "  hid.py watch                  see shaped output live",
@@ -316,6 +345,15 @@ def main():
         bad = check_setting(name, a.args[2])
         if bad:
             sys.exit(bad)
+    elif head == "keys" and len(a.args) > 1:
+        first = a.args[1].lower()
+        if len(a.args) == 2 and first not in KEY_PRESETS:
+            sys.exit(f"unknown preset '{first}'\n  presets: "
+                     f"{', '.join(KEY_PRESETS)}\n"
+                     f"  or: keys <{'|'.join(DIRECTIONS)}> <key>")
+        if len(a.args) > 2 and first not in DIRECTIONS:
+            sys.exit(f"unknown direction '{first}'\n  one of: "
+                     f"{', '.join(DIRECTIONS)}")
 
     port = a.port or find_port()
     if not port:
