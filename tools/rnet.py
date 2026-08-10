@@ -200,19 +200,45 @@ def build_path(sketch, fqbn):
     return BUILD_ROOT / f"{sketch.name}.{fqbn.replace(':', '_').replace('/', '_')}"
 
 
+FROZEN = getattr(sys, "frozen", False)
+
+
 def python_exe():
     return sys.executable or "python3"
 
 
 def run_tool(script, extra, port=None, port_flag="--port"):
+    """Hand off to one of the sibling tools.
+
+    Frozen builds cannot shell out: `sys.executable` is the bundled
+    executable, not a Python interpreter, and the .py files are not on disk.
+    So a packaged build imports the module and calls its `main()` in-process
+    instead. Unfrozen, a subprocess keeps the tools isolated, which matters
+    because several of them install signal handlers or open windows.
+    """
+    argv = list(extra) + ([port_flag, port] if port else [])
+    module = Path(script).with_suffix("").as_posix().replace("/", ".")
+
+    if FROZEN:
+        import importlib
+        try:
+            mod = importlib.import_module(module)
+        except ImportError as e:
+            raise Fail(f"{module} is not bundled in this build ({e}).")
+        saved = sys.argv
+        sys.argv = [module] + argv
+        try:
+            return mod.main() or 0
+        except SystemExit as e:
+            return e.code or 0
+        finally:
+            sys.argv = saved
+
     path = TOOLS / script
     if not path.exists():
         raise Fail(f"{script} not found at {path}")
-    cmd = [python_exe(), str(path), *extra]
-    if port:
-        cmd += [port_flag, port]
     sys.stdout.flush()
-    return subprocess.call(cmd)
+    return subprocess.call([python_exe(), str(path), *argv])
 
 
 # ------------------------------------------------------ commands -----------

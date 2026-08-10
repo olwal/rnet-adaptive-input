@@ -190,6 +190,36 @@ def main():
     except serial.SerialException as e:
         sys.exit(f"Could not open {port}: {e}")
 
+    # When no PJRC board is attached, port discovery falls back to whatever
+    # single serial device is present, which may be something unrelated. Say
+    # which port was opened, and give up rather than blocking forever if
+    # nothing that parses as telemetry arrives.
+    print(f"reading {port} at {args.baud}", file=sys.stderr)
+    started = time.time()
+    got_any = got_parsed = False
+
+    def check_alive(raw, parsed=False):
+        """Two separate failure modes, two separate messages: silence usually
+        means the wrong port, whereas traffic that never parses means the
+        right port but the wrong firmware."""
+        nonlocal got_any, got_parsed
+        got_any = got_any or bool(raw)
+        got_parsed = got_parsed or parsed
+        if got_parsed:
+            return
+        elapsed = time.time() - started
+        if not got_any and elapsed > 6.0:
+            ser.close()
+            sys.exit(f"\nNothing received on {port} after 6 s. Wrong port, or "
+                     f"no firmware running?\nPorts visible:\n"
+                     f"{rnetport.describe_ports()}")
+        if got_any and elapsed > 10.0:
+            ser.close()
+            sys.exit(f"\n{port} is sending data, but none of it is joystick "
+                     f"telemetry.\nThis is probably a different board. Last "
+                     f"line seen:\n  {raw[:120]!r}\nPorts visible:\n"
+                     f"{rnetport.describe_ports()}")
+
     peaks = {"dxmin": 0, "dxmax": 0, "dymin": 0, "dymax": 0}
     cal = "calibration: (not captured - reset the board to see it)"
     drawn = 0
@@ -218,6 +248,7 @@ def main():
     try:
         while True:
             raw = ser.readline().decode("utf-8", "replace").strip()
+            check_alive(raw, bool(raw) and LINE_RE.search(raw) is not None)
             if not raw:
                 continue
 
