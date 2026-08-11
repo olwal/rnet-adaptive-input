@@ -48,53 +48,10 @@ Verified compiling for both `teensy:avr:teensy30` and `arduino:avr:uno`.
 
 ### Standalone binaries
 
-`rnet` can be packaged into a single executable so it runs without a Python
-installation. Locally:
-
-```
-python -m pip install pyinstaller
-python -m PyInstaller packaging/rnet.spec --distpath packaging/dist
-```
-
-That produces an 8 MB `rnet` (or `rnet.exe`) bundling `rnet`, `scope`, `hid`
-and pyserial. The marble game is deliberately excluded: raylib, numpy and scipy
-would take the download past 150 MB for something most people will not run, so
-`rnet demo` in a packaged build reports that it needs a Python install.
-
-**It behaves differently inside and outside a checkout.** Run from a clone, it
-finds the project and uses `tools/board.json` as usual. Run from anywhere else,
-there are no sketch sources, so `build`, `upload`, `flash` and `run` refuse with
-an explanation, while `scope`, `hid`, `monitor`, `boards`, `config` and `doctor`
-work normally. Config then lives in the per-user location:
-`%APPDATA%\rnet\board.json`, `~/Library/Application Support/rnet/board.json`, or
-`$XDG_CONFIG_HOME/rnet/board.json`.
-
-This matters because a frozen build cannot use `__file__` to find anything:
-PyInstaller unpacks to a temporary directory, so paths derived from it resolve
-inside `%TEMP%` and any config written there disappears between runs.
-
-### Cutting a release
-
-`.github/workflows/release.yml` builds for Windows, macOS (Apple silicon and
-Intel) and Linux, then attaches all four to a GitHub release.
-
-```
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-Pushing a tag matching `v*` is the whole trigger. The workflow builds on each
-platform in parallel, runs `rnet doctor` on the result as a smoke test, and
-publishes a release with generated notes. To test the build without releasing,
-run the workflow by hand from the Actions tab: the build jobs run and upload
-artifacts, and the release job is skipped because the ref is not a tag.
-
-The unix builds ship as `.tar.gz` rather than bare binaries because both `zip`
-and `upload-artifact` drop the executable bit.
-
-Binaries are unsigned, so Windows SmartScreen warns on first run and macOS
-needs `xattr -d com.apple.quarantine rnet`. Signing would need a certificate on
-each platform.
+`rnet` can be packaged into a single ~8 MB executable that runs without a
+Python installation, and CI builds one per platform on a tagged release. How
+that works, what the binary can and cannot do outside a checkout, and how to
+publish one: [builds and releases](releases.md).
 
 ### Host-side tools
 
@@ -104,10 +61,10 @@ Python 3 with `pyserial` and `pygame` (`python -m pip install pyserial pygame`).
 joystick volts, and two centre-zero bargraphs.
 
 ```
-.rnet scope                 # live display, Ctrl+C to exit
-.rnet scope --once          # one frame, scriptable snapshot
-.rnet scope --sample 10     # N parsed lines, non-interactive
-.rnet scope --analyze 20    # capture + crosstalk statistics
+rnet scope                 # live display, Ctrl+C to exit
+rnet scope --once          # one frame, scriptable snapshot
+rnet scope --sample 10     # N parsed lines, non-interactive
+rnet scope --analyze 20    # capture + crosstalk statistics
 ```
 
 `--analyze` is the diagnostic: sweep **one** axis fully, leave the other centred,
@@ -143,11 +100,11 @@ Shared by every demo (they all sit on `engine.py`), and by `crosshair.py`.
 | `M` | next monitor (`Shift+M` for previous) |
 
 ```
-.rnet demo rally --list-monitors        # what's attached
-.rnet demo rally --monitor 1            # fullscreen on the second screen
-.rnet demo rally --windowed             # windowed on the current screen
-.rnet demo rally --windowed --width 1600 --height 900
-.rnet demo rally --exclusive            # true fullscreen, not borderless
+rnet demo labyrinth --list-monitors        # what's attached
+rnet demo labyrinth --monitor 1            # fullscreen on the second screen
+rnet demo labyrinth --windowed             # windowed on the current screen
+rnet demo labyrinth --windowed --width 1600 --height 900
+rnet demo labyrinth --exclusive            # true fullscreen, not borderless
 ```
 
 Fullscreen defaults to **borderless**, which is far more reliable across two

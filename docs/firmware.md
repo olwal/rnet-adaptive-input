@@ -26,11 +26,11 @@ keyboard at once**, with the serial link still live underneath as telemetry and
 control.
 
 ```
-.rnet flash --hid           # r-net_hid + the serialhid descriptor set
-.rnet hid                  # interactive switcher / tuner
-.rnet hid mode gamepad
-.rnet hid set expo 0.45
-.rnet hid watch
+rnet flash --hid           # r-net_hid + the serialhid descriptor set
+rnet hid                  # interactive switcher / tuner
+rnet hid mode gamepad
+rnet hid set expo 0.45
+rnet hid watch
 ```
 
 USB type is a **compile-time** choice, so all five interfaces (CDC status, CDC
@@ -80,7 +80,30 @@ free. Commands are line-based ASCII, typable from any terminal:
 ```
 MODE 0..3 | PARK | CAL | GET | HELP
 SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty <value>
+KEYS [arrows|wasd|ijkl|media] | KEYS <up|down|left|right> <key>
+SAVE | LOAD | DEFAULTS | BOOT 0..3
 ```
+
+### Persisting settings
+
+`SAVE` writes the mode, the shaping parameters and the key mapping to EEPROM,
+guarded by a magic number and a version so a blank EEPROM is not read as
+settings, and clamped on load so a corrupt one cannot produce a stick that
+never reports centre.
+
+`BOOT <mode>` sets which mode the board enters at power-on. It defaults to
+`parked` and only changes if asked, which preserves the property above: nothing
+drives the host until someone opts in.
+
+```
+rnet hid boot mouse
+rnet hid save
+```
+
+That combination is what makes the device usable on a host that cannot talk to
+the serial port. iPadOS claims the CDC interface before any app can reach it,
+so nothing on an iPad can send a `MODE` command; configure it from a computer
+first and it arms itself. `rnet hid boot park` and `save` undoes it.
 
 ### Gamepad mode is DirectInput, not XInput
 
@@ -106,16 +129,30 @@ don't collide.
 different USB device, so Windows enumerates it fresh and assigns a new port.
 COM28 became COM34 here. Everything that reads `tools/board.json` (the demos,
 `scope.py`, `crosshair.py`, `hid.py`) then points at a port that no longer
-exists. Run `.rnet config` after the first HID flash to re-pin it.
+exists. Run `rnet config` after the first HID flash to re-pin it.
 
 To confirm the flash actually landed, check the **PID** rather than trusting the
 uploader, which reports success even when it fell back to waiting for the
 button:
 
+Windows:
+
 ```
 Get-CimInstance Win32_PnPEntity |
   Where-Object { $_.DeviceID -like "*VID_16C0*" } |
   Select-Object Name, DeviceID
+```
+
+macOS:
+
+```
+system_profiler SPUSBDataType | grep -A6 -i teensy
+```
+
+Linux:
+
+```
+lsusb -d 16c0:
 ```
 
 `PID_0483` is the serial-only build. **`PID_0487` is serialhid**, and you should

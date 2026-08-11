@@ -26,6 +26,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import rnetport
 
+__version__ = "0.1.0"
+
 # A frozen build has no source tree, so the project root has to be discovered
 # rather than derived from __file__, which PyInstaller points at a temp dir.
 # Without a checkout the runtime commands (scope, hid, monitor, boards) still
@@ -460,6 +462,7 @@ def main(argv=None):
         epilog="\n".join(epilog), add_help=False,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("-h", "--help", action="store_true", dest="want_help")
+    p.add_argument("-V", "--version", action="store_true", dest="want_version")
     p.add_argument("command", nargs="?", default="help",
                    help="one of: " + ", ".join(COMMANDS))
     p.add_argument("--sketch")
@@ -485,6 +488,13 @@ def main(argv=None):
         a, rest = p.parse_known_args(args)
         a.rest = rest
 
+    if a.want_version:
+        # One line that answers "which build, on what" in a bug report.
+        kind = "packaged" if FROZEN else "source"
+        print(f"rnet {__version__} ({kind})  "
+              f"{platform.system()} {platform.machine()}  "
+              f"python {sys.version.split()[0]}")
+        return 0
     if a.want_help or a.command in ("help", "-h", "--help"):
         p.print_help()
         return 0

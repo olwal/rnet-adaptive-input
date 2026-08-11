@@ -36,6 +36,7 @@ switch with; the serial stream runs regardless of the mode.
 | [Host tooling](docs/tooling.md) | Build, flash, monitor and tune without installing a toolchain |
 | [Marble game](docs/demo-labyrinth.md) | The tilt labyrinth demo: controls, levels, how it is rendered |
 | [Single-stick game design](docs/joystick-only-games-brief.md) | Notes on interaction design for one axis pair with no buttons |
+| [Builds and releases](docs/releases.md) | The standalone binaries, and how they are built and published |
 | [Open questions and roadmap](docs/roadmap.md) | Unresolved items and planned work |
 
 ![The bench build: R-Net joystick on a D-sub breakout, dividers, and a Teensy 3.0](docs/diagram.jpg)
@@ -59,6 +60,12 @@ Everything here runs on Windows, macOS and Linux. `rnet` below means `./rnet`
 on macOS and Linux, `rnet.cmd` on Windows, or `python tools/rnet.py` anywhere.
 Run `rnet doctor` first on a new machine: it reports the toolchain it found,
 the serial ports it can see, and which one it would use.
+
+**Prebuilt binaries** for all three platforms are on the
+[releases page](../../releases), if you only want to talk to a board someone
+else has already flashed. They bundle `rnet`, `scope` and `hid` and need no
+Python. Building firmware still needs a clone and the Arduino IDE. See
+[builds and releases](docs/releases.md).
 
 ### 1. Build and flash
 
