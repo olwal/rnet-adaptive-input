@@ -23,6 +23,30 @@ game from a clone instead.
 Unix builds ship as tarballs rather than bare binaries because both `zip` and
 GitHub's `upload-artifact` drop the executable bit.
 
+### Runner images
+
+| Asset | Runner |
+|---|---|
+| Windows | `windows-latest` |
+| macOS arm64 | `macos-latest` |
+| macOS x64 | `macos-15-intel` |
+| Linux | `ubuntu-latest` |
+
+`macos-13` was retired on 4 December 2025. A workflow still asking for it does
+not fail fast: the job sits in the queue waiting for a runner that will never
+appear, and gives up after **24 hours**. `macos-15-intel` replaces it and is the
+last x86_64 macOS image GitHub will offer, available until August 2027. After
+that, either drop the Intel build or ship only x86_64 and let Rosetta 2 cover
+Apple silicon.
+
+Every job carries `timeout-minutes: 30` so a missing runner is a quick failure
+rather than a day of queueing.
+
+The Linux binary is stripped in `packaging/rnet.spec`; without it the bundled
+shared libraries keep their full symbol tables and the artifact comes out at
+around 19 MB against 8 MB for the others. Stripping is left off on macOS, where
+it interferes with signing, and on Windows, where it achieves nothing.
+
 ## What the binary can and cannot do
 
 Run from a clone of this repository, it behaves exactly like `python
@@ -81,10 +105,10 @@ git push origin v0.1.0
 That is the entire trigger. Any tag matching `v*` starts it.
 
 **3. Watch it.** Four build jobs run in parallel, each installing PyInstaller,
-building from the spec, and running `rnet doctor` on the result as a smoke
-test. `doctor` exercises the pyserial import and port enumeration and returns 0
-with no board attached, which catches the failure that matters: a binary that
-builds but cannot import anything.
+building from the spec, and running `rnet --version` and `rnet doctor` on the
+result as a smoke test. `doctor` exercises the pyserial import and port
+enumeration and returns 0 with no board attached, which catches the failure that
+matters: a binary that builds but cannot import anything.
 
 **4. The release appears** under Releases with generated notes and the four
 assets attached.

@@ -14,6 +14,9 @@ jobs:
   build:
     name: ${{ matrix.asset }}
     runs-on: ${{ matrix.os }}
+    # A runner that never becomes available otherwise sits in the queue for a
+    # full day before failing.
+    timeout-minutes: 30
     strategy:
       fail-fast: false   # one platform failing should not hide the others
       matrix:
@@ -24,7 +27,9 @@ jobs:
           - os: macos-latest        # Apple silicon
             asset: rnet-macos-arm64.tar.gz
             binary: rnet
-          - os: macos-13            # Intel
+          # macos-13 was retired in December 2025; macos-15-intel replaces it
+          # and is the last x86_64 macOS image, available until August 2027.
+          - os: macos-15-intel
             asset: rnet-macos-x64.tar.gz
             binary: rnet
           - os: ubuntu-latest
@@ -32,9 +37,9 @@ jobs:
             binary: rnet
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
 
@@ -51,7 +56,9 @@ jobs:
       # even with no board attached.
       - name: Smoke test
         shell: bash
-        run: ./dist/${{ matrix.binary }} doctor
+        run: |
+          ./dist/${{ matrix.binary }} --version
+          ./dist/${{ matrix.binary }} doctor
 
       - name: Package
         shell: bash
@@ -64,8 +71,9 @@ jobs:
             # papercut.
             tar -czf "${{ matrix.asset }}" -C dist "${{ matrix.binary }}"
           fi
+          ls -lh "${{ matrix.asset }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.asset }}
           path: ${{ matrix.asset }}
@@ -76,13 +84,13 @@ jobs:
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
 
       - name: Attach to the release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: artifacts/*
           generate_release_notes: true

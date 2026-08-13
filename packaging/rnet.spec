@@ -14,11 +14,18 @@
 # bigger for everyone. `rnet demo` in a packaged build reports that it needs a
 # Python install rather than failing obscurely.
 
+import sys
 from pathlib import Path
 
 # SPECPATH is set by PyInstaller to the directory holding this file.
 ROOT = Path(SPECPATH).parent
 TOOLS = ROOT / "tools"
+
+# The Linux build comes out well over twice the size of the others because the
+# shared libraries it bundles carry full symbol tables. Stripping is safe here
+# and roughly halves it. Left off elsewhere: on macOS it interferes with
+# signing, and on Windows it does nothing useful.
+STRIP = sys.platform.startswith("linux")
 
 a = Analysis(
     [str(TOOLS / "rnet.py")],
@@ -49,7 +56,7 @@ exe = EXE(
     name="rnet",
     debug=False,
     bootloader_ignore_signals=False,
-    strip=False,
+    strip=STRIP,
     # UPX is off: it buys a few MB and is a reliable way to get flagged by
     # antivirus, which is already a problem for unsigned one-file builds.
     upx=False,
