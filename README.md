@@ -32,6 +32,7 @@ switch with; the serial stream runs regardless of the mode.
 |---|---|
 | [Hardware and pinout](docs/hardware.md) | Identifying the joystick, the verified 9-pin D-sub pinout, supporting measurements, bring-up |
 | [Wiring the Teensy](docs/wiring.md) | Divider design for a 3.3 V ADC, pad map, expected readings, known issues |
+| [Browser configurator](https://olwal.github.io/rnet-adaptive-input/config.html) | Set modes, tune response and remap keys from Chrome or Edge, no install |
 | [Firmware](docs/firmware.md) | The bring-up sketch, the multi-HID build, and the serial protocol |
 | [Host tooling](docs/tooling.md) | Build, flash, monitor and tune without installing a toolchain |
 | [Marble game](docs/demo-labyrinth.md) | The tilt labyrinth demo: controls, levels, how it is rendered |

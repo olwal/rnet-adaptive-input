@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>R-net Adaptive Input - configure</title>
+<style>
+  :root {
+    --bg: #14161c; --panel: #1c1f28; --edge: #2c3140;
+    --ink: #e7eaf0; --dim: #98a0b0; --accent: #7fd6a8;
+    --warn: #e8a33d; --bad: #e8756a; --focus: #8fb8ff;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f4f5f8; --panel: #fff; --edge: #d8dce4;
+      --ink: #1a1d24; --dim: #5a6474; --accent: #1d7f52;
+      --warn: #9a5c00; --bad: #b03027; --focus: #1f5fd0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 1.5rem; background: var(--bg); color: var(--ink);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1rem; margin: 0 0 .9rem; letter-spacing: .02em;
+       text-transform: uppercase; color: var(--dim); }
+  p.lede { margin: 0 0 1.25rem; color: var(--dim); }
+  .panel { background: var(--panel); border: 1px solid var(--edge);
+           border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+  button, select {
+    font: inherit; color: var(--ink); background: var(--panel);
+    border: 1px solid var(--edge); border-radius: 8px;
+    padding: .45rem .8rem; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--focus); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent);
+                   color: #0d1712; font-weight: 600; }
+  button.on { background: var(--accent); border-color: var(--accent);
+              color: #0d1712; font-weight: 600; }
+  button.danger { border-color: var(--bad); color: var(--bad); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .spread { display: flex; justify-content: space-between; align-items: center;
+            gap: 1rem; flex-wrap: wrap; }
+  .field { margin-bottom: .95rem; }
+  .field label { display: flex; justify-content: space-between;
+                 gap: 1rem; font-weight: 600; margin-bottom: .2rem; }
+  .field .val { font-variant-numeric: tabular-nums; color: var(--accent);
+                font-weight: 700; }
+  .field .help { color: var(--dim); font-size: .85rem; margin-top: .1rem; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .tag { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
+         border: 1px solid var(--edge); border-radius: 999px;
+         padding: .05rem .5rem; color: var(--dim); font-weight: 600; }
+  #log { font: 12.5px/1.5 ui-monospace, Consolas, monospace; height: 8.5rem;
+         overflow-y: auto; white-space: pre-wrap; color: var(--dim);
+         background: var(--bg); border: 1px solid var(--edge);
+         border-radius: 8px; padding: .6rem .7rem; }
+  .status { font-weight: 600; }
+  .status.off { color: var(--dim); }
+  .status.on { color: var(--accent); }
+  .banner { border-left: 4px solid var(--warn); padding: .7rem .9rem;
+            background: var(--panel); border-radius: 8px; margin-bottom: 1rem; }
+  .banner.bad { border-left-color: var(--bad); }
+  .banner.ok { border-left-color: var(--accent); }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+  .keymap { display: grid; grid-template-columns: auto 1fr; gap: .4rem .7rem;
+            align-items: center; }
+  .nums { font: 13px/1.7 ui-monospace, Consolas, monospace; color: var(--dim);
+          font-variant-numeric: tabular-nums; }
+  svg.stick { display: block; margin: 0 auto .6rem; }
+  a { color: var(--focus); }
+  .hide { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>R-net Adaptive Input</h1>
+<p class="lede">
+  Configure the joystick from a browser. Nothing to install.
+  <a href="https://github.com/olwal/rnet-adaptive-input">Project</a>
+</p>
+
+<div id="unsupported" class="banner bad hide">
+  <strong>This browser cannot talk to serial devices.</strong>
+  The Web Serial API needs desktop Chrome, Edge or Opera. Safari and Firefox do
+  not implement it, and neither does any browser on iOS or iPadOS. Configure
+  from a computer, press <em>Save to device</em>, then plug the joystick into
+  the tablet - the settings are stored on the board itself.
+</div>
+
+<div class="panel spread">
+  <div class="row">
+    <button id="connect" class="primary">Connect</button>
+    <button id="disconnect" disabled>Disconnect</button>
+    <span id="status" class="status off">not connected</span>
+  </div>
+  <div class="row">
+    <button id="park" class="danger" disabled title="Escape also parks it">
+      Park (Esc)
+    </button>
+  </div>
+</div>
+
+<div id="runaway" class="banner hide">
+  <strong>Heads up.</strong> In mouse or keyboard mode the joystick is driving
+  this computer while you use this page. If the pointer runs away, press
+  <strong>Escape</strong> to park it.
+</div>
+
+<div class="cols">
+
+  <div>
+    <div class="panel">
+      <h2>Live input</h2>
+      <svg class="stick" width="220" height="220" viewBox="-110 -110 220 220"
+           aria-label="Live joystick position">
+        <circle cx="0" cy="0" r="100" fill="none" stroke="currentColor"
+                stroke-opacity=".18" stroke-width="1.5"/>
+        <circle id="dzring" cx="0" cy="0" r="12" fill="none"
+                stroke="currentColor" stroke-opacity=".3"
+                stroke-dasharray="3 4" stroke-width="1.5"/>
+        <line x1="-104" y1="0" x2="104" y2="0" stroke="currentColor"
+              stroke-opacity=".12"/>
+        <line x1="0" y1="-104" x2="0" y2="104" stroke="currentColor"
+              stroke-opacity=".12"/>
+        <circle id="dot" cx="0" cy="0" r="9" fill="var(--accent)"/>
+      </svg>
+      <div class="nums" id="readout">waiting for data</div>
+      <div class="row" style="margin-top:.7rem">
+        <button id="cal" disabled title="Let go of the stick first">
+          Re-centre
+        </button>
+        <button id="drift" disabled>Check resting drift</button>
+      </div>
+      <div id="driftresult" class="banner hide" style="margin:.8rem 0 0"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Mode</h2>
+      <div class="grid4" id="modes"></div>
+      <p style="color:var(--dim);font-size:.85rem;margin:.7rem 0 0">
+        All the USB interfaces are live at once; this picks which one the stick
+        drives. The serial stream runs regardless.
+      </p>
+    </div>
+
+    <div class="panel">
+      <h2>Startup</h2>
+      <div class="field">
+        <label for="boot">Mode on power-up
+          <span class="tag">needs save</span></label>
+        <select id="boot" disabled></select>
+        <div class="help">
+          Stored on the board, so it applies on any host - including ones this
+          page cannot reach, like an iPad.
+        </div>
+      </div>
+      <div class="row">
+        <button id="save" class="primary" disabled>Save to device</button>
+        <button id="load" disabled>Revert to saved</button>
+        <button id="defaults" disabled>Factory defaults</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Response</h2>
+      <div id="sliders"></div>
+      <div class="field" style="margin-bottom:0">
+        <label for="inverty">Invert Y axis</label>
+        <input type="checkbox" id="inverty" disabled>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Keyboard mapping</h2>
+      <div class="grid4" id="presets" style="margin-bottom:.9rem"></div>
+      <div class="keymap" id="keymap"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Device log</h2>
+      <div id="log" role="log" aria-live="polite"></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<script>
+"use strict";
+
+// Mirrors the clamps in r-net_hid.ino. The firmware is authoritative and will
+// clip anyway; these exist so the UI cannot offer a value it will not honour.
+var SETTINGS = {
+  deadzone:  { min: 0,    max: 0.45, step: 0.005, dp: 3, scope: "all",
+               label: "Dead zone",
+               help: "Travel ignored around centre. Must exceed the resting " +
+                     "drift of the stick, or the pointer creeps on its own." },
+  expo:      { min: 0,    max: 0.95, step: 0.01,  dp: 2, scope: "all",
+               label: "Expo",
+               help: "Soft near centre, full authority at the edge. The " +
+                     "setting that matters most for fine control." },
+  slew:      { min: 0.5,  max: 60,   step: 0.5,   dp: 1, scope: "all",
+               label: "Slew limit", unit: "/s",
+               help: "Caps how fast the output can change. Lower values damp " +
+                     "spasms and knocks." },
+  mousegain: { min: 40,   max: 3000, step: 10,    dp: 0, scope: "mouse",
+               label: "Cursor speed", unit: " px/s",
+               help: "Pointer speed at full deflection." },
+  keyon:     { min: 0.1,  max: 0.95, step: 0.01,  dp: 2, scope: "keyboard",
+               label: "Key press point",
+               help: "How far to push before a key is sent." },
+  keyoff:    { min: 0.05, max: 0.90, step: 0.01,  dp: 2, scope: "keyboard",
+               label: "Key release point",
+               help: "Held below the press point so a key cannot chatter at " +
+                     "the boundary." }
+};
+
+var MODES = [
+  { n: 0, name: "Parked",   blurb: "drives nothing" },
+  { n: 1, name: "Gamepad",  blurb: "absolute axes" },
+  { n: 2, name: "Mouse",    blurb: "moves the pointer" },
+  { n: 3, name: "Keyboard", blurb: "sends keys" }
+];
+
+var KEY_PRESETS = ["arrows", "wasd", "ijkl", "media"];
+var DIRECTIONS = ["up", "down", "left", "right"];
+var KEY_CHOICES = [
+  "UP", "DOWN", "LEFT", "RIGHT",
+  "SPACE", "ENTER", "ESC", "TAB", "BACKSPACE", "DELETE",
+  "HOME", "END", "PAGEUP", "PAGEDOWN",
+  "VOLUP", "VOLDOWN", "PLAY", "NEXT", "PREV"
+].concat("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split(""));
+
+var FULL_SCALE = 143;   // counts at full deflection, matching the firmware
+
+function $(id) { return document.getElementById(id); }
+
+var port = null, writer = null, reader = null, readLoop = null;
+var cfg = {}, keys = {}, mode = 0, connected = false;
+var lastTelemetry = null;
+
+// ---------------------------------------------------------------- log ------
+
+function log(line, tone) {
+  var el = $("log");
+  var div = document.createElement("div");
+  div.textContent = line;
+  if (tone) div.style.color = "var(--" + tone + ")";
+  el.appendChild(div);
+  while (el.childNodes.length > 300) el.removeChild(el.firstChild);
+  el.scrollTop = el.scrollHeight;
+}
+
+// ------------------------------------------------------------ serial ------
+
+function send(cmd) {
+  if (!writer) return Promise.resolve();
+  return writer.write(new TextEncoder().encode(cmd + "\n"));
+}
+
+async function connect() {
+  try {
+    // Filtering on the PJRC vendor id keeps the picker to the actual board.
+    port = await navigator.serial.requestPort({
+      filters: [{ usbVendorId: 0x16C0 }]
+    });
+    await port.open({ baudRate: 115200 });
+  } catch (e) {
+    if (e && e.name === "NotFoundError") return;      // user cancelled
+    log("could not open: " + e.message, "bad");
+    return;
+  }
+
+  writer = port.writable.getWriter();
+  connected = true;
+  setEnabled(true);
+  $("status").textContent = "connected";
+  $("status").className = "status on";
+  $("runaway").classList.remove("hide");
+  log("connected", "accent");
+
+  readLoop = pump();
+  // Populate from the device rather than from anything hardcoded here, so the
+  // page can never silently overwrite a configuration someone has tuned.
+  await send("GET");
+}
+
+async function pump() {
+  var dec = new TextDecoder();
+  var buf = "";
+  reader = port.readable.getReader();
+  try {
+    for (;;) {
+      var r = await reader.read();
+      if (r.done) break;
+      buf += dec.decode(r.value, { stream: true });
+      var i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        handleLine(buf.slice(0, i).replace(/\r$/, ""));
+        buf = buf.slice(i + 1);
+      }
+      if (buf.length > 4096) buf = "";               // never grow unbounded
+    }
+  } catch (e) {
+    if (connected) log("read stopped: " + e.message, "bad");
+  } finally {
+    try { reader.releaseLock(); } catch (_) {}
+  }
+}
+
+async function disconnect() {
+  connected = false;
+  try { if (reader) await reader.cancel(); } catch (_) {}
+  try { if (readLoop) await readLoop; } catch (_) {}
+  try { if (writer) writer.releaseLock(); } catch (_) {}
+  try { if (port) await port.close(); } catch (_) {}
+  port = writer = reader = readLoop = null;
+  setEnabled(false);
+  $("status").textContent = "not connected";
+  $("status").className = "status off";
+  $("runaway").classList.add("hide");
+  log("disconnected - the port is free for rnet and the demos again");
+}
+
+// --------------------------------------------------------- parsing --------
+
+function handleLine(line) {
+  if (!line) return;
+  if (line.charAt(0) === "#" || line.indexOf("===") === 0) {
+    var body = line.replace(/^#\s*/, "");
+    if (body.indexOf("cfg ") === 0) { applyCfg(body); return; }
+    if (body.indexOf("keys ") === 0) { applyKeys(body); return; }
+    log(body);
+    return;
+  }
+  var t = parseTelemetry(line);
+  if (t) { lastTelemetry = t; paint(t); }
+}
+
+function fields(s) {
+  var out = {};
+  var toks = s.trim().split(/\s+/);
+  for (var i = 0; i < toks.length; i++) {
+    var eq = toks[i].indexOf("=");
+    if (eq > 0) out[toks[i].slice(0, eq)] = toks[i].slice(eq + 1);
+  }
+  return out;
+}
+
+function parseTelemetry(line) {
+  if (!/(^|\s)dx=/.test(line)) return null;
+  var f = fields(line);
+  if (f.dx === undefined || f.dy === undefined) return null;
+  return {
+    dx: +f.dx, dy: +f.dy, sw: f.sw === "1",
+    sx: f.sx === undefined ? 0 : +f.sx,
+    sy: f.sy === undefined ? 0 : +f.sy,
+    mode: f.mode === undefined ? mode : +f.mode
+  };
+}
+
+function applyCfg(body) {
+  var f = fields(body.slice(4));
+  for (var k in SETTINGS) {
+    if (f[k] !== undefined) cfg[k] = +f[k];
+  }
+  if (f.inverty !== undefined) cfg.inverty = f.inverty === "1";
+  if (f.boot !== undefined) cfg.boot = +f.boot;
+  if (f.mode !== undefined) mode = +f.mode;
+  syncControls();
+  log("read configuration from device", "accent");
+}
+
+function applyKeys(body) {
+  keys = fields(body.slice(5));
+  syncKeys();
+}
+
+// ------------------------------------------------------------- paint ------
+
+function pad(n) {
+  var s = String(n);
+  while (s.length < 5) s = " " + s;
+  return s;
+}
+
+function paint(t) {
+  var R = 100;
+  var x = Math.max(-1.4, Math.min(1.4, t.dx / FULL_SCALE));
+  var y = Math.max(-1.4, Math.min(1.4, t.dy / FULL_SCALE));
+  $("dot").setAttribute("cx", (x * R).toFixed(1));
+  $("dot").setAttribute("cy", (-y * R).toFixed(1));
+  $("dot").setAttribute("fill", t.sw ? "var(--warn)" : "var(--accent)");
+  var dz = (cfg.deadzone === undefined ? 0 : cfg.deadzone) * R;
+  $("dzring").setAttribute("r", Math.max(2, dz).toFixed(1));
+
+  var live = (t.sx !== 0 || t.sy !== 0);
+  $("readout").textContent =
+    "raw  dx " + pad(t.dx) + "  dy " + pad(t.dy) + "      " +
+    "shaped  x " + t.sx.toFixed(3) + "  y " + t.sy.toFixed(3) +
+    (t.sw ? "      switch DOWN" : "") +
+    (live ? "" : "      (inside dead zone)");
+
+  if (t.mode !== mode) { mode = t.mode; syncModeButtons(); }
+}
+
+// ------------------------------------------------------------- build ------
+
+function buildSliders() {
+  var host = $("sliders");
+  Object.keys(SETTINGS).forEach(function (key) {
+    var s = SETTINGS[key];
+    var wrap = document.createElement("div");
+    wrap.className = "field";
+    wrap.innerHTML =
+      '<label for="s_' + key + '">' +
+        "<span>" + s.label +
+          (s.scope !== "all"
+            ? ' <span class="tag">' + s.scope + "</span>" : "") +
+        "</span>" +
+        '<span class="val" id="v_' + key + '">-</span>' +
+      "</label>" +
+      '<input type="range" id="s_' + key + '" min="' + s.min + '" max="' +
+        s.max + '" step="' + s.step + '" disabled aria-describedby="h_' +
+        key + '">' +
+      '<div class="help" id="h_' + key + '">' + s.help + "</div>";
+    host.appendChild(wrap);
+
+    var input = wrap.querySelector("input");
+    // Throttled: dragging a slider would otherwise flood the link, and every
+    // write is a round trip the firmware has to parse.
+    var timer = null;
+    input.addEventListener("input", function () {
+      var v = +input.value;
+      cfg[key] = v;
+      showVal(key, v);
+      if (key === "keyon" || key === "keyoff") guardKeyThresholds(key);
+      clearTimeout(timer);
+      timer = setTimeout(function () { send("SET " + key + " " + v); }, 90);
+    });
+  });
+}
+
+// The firmware forces keyoff below keyon. Mirror that here so the UI never
+// shows a state the device has quietly corrected behind it.
+function guardKeyThresholds(changed) {
+  if (cfg.keyoff === undefined || cfg.keyon === undefined) return;
+  if (cfg.keyoff < cfg.keyon) return;
+  cfg.keyoff = +(cfg.keyon * 0.72).toFixed(2);
+  setSlider("keyoff", cfg.keyoff);
+  if (changed === "keyon") send("SET keyoff " + cfg.keyoff);
+}
+
+function buildModes() {
+  var host = $("modes");
+  MODES.forEach(function (m) {
+    var b = document.createElement("button");
+    b.id = "m_" + m.n;
+    b.innerHTML = m.name +
+      '<br><span style="font-weight:400;font-size:.78rem;opacity:.75">' +
+      m.blurb + "</span>";
+    b.disabled = true;
+    b.addEventListener("click", function () { send("MODE " + m.n); });
+    host.appendChild(b);
+  });
+  var boot = $("boot");
+  MODES.forEach(function (m) {
+    var o = document.createElement("option");
+    o.value = m.n;
+    o.textContent = m.name + " - " + m.blurb;
+    boot.appendChild(o);
+  });
+  boot.addEventListener("change", function () { send("BOOT " + boot.value); });
+}
+
+function buildKeys() {
+  var host = $("presets");
+  KEY_PRESETS.forEach(function (p) {
+    var b = document.createElement("button");
+    b.textContent = p;
+    b.id = "p_" + p;
+    b.disabled = true;
+    b.addEventListener("click", function () { send("KEYS " + p); });
+    host.appendChild(b);
+  });
+  var map = $("keymap");
+  DIRECTIONS.forEach(function (d) {
+    var lab = document.createElement("label");
+    lab.setAttribute("for", "k_" + d);
+    lab.textContent = d;
+    lab.style.fontWeight = "600";
+    var sel = document.createElement("select");
+    sel.id = "k_" + d;
+    sel.disabled = true;
+    KEY_CHOICES.forEach(function (k) {
+      var o = document.createElement("option");
+      o.value = k;
+      o.textContent = k;
+      sel.appendChild(o);
+    });
+    sel.addEventListener("change", function () {
+      send("KEYS " + d + " " + sel.value);
+    });
+    map.appendChild(lab);
+    map.appendChild(sel);
+  });
+}
+
+// ------------------------------------------------------------- sync -------
+
+function showVal(key, v) {
+  var s = SETTINGS[key];
+  $("v_" + key).textContent = v.toFixed(s.dp) + (s.unit || "");
+}
+
+function setSlider(key, v) {
+  var el = $("s_" + key);
+  if (el) { el.value = v; showVal(key, v); }
+}
+
+function syncControls() {
+  Object.keys(SETTINGS).forEach(function (key) {
+    if (cfg[key] !== undefined) setSlider(key, cfg[key]);
+  });
+  if (cfg.inverty !== undefined) $("inverty").checked = cfg.inverty;
+  if (cfg.boot !== undefined) $("boot").value = String(cfg.boot);
+  syncModeButtons();
+}
+
+function syncModeButtons() {
+  MODES.forEach(function (m) {
+    var b = $("m_" + m.n);
+    if (b) b.classList.toggle("on", m.n === mode);
+  });
+}
+
+function syncKeys() {
+  DIRECTIONS.forEach(function (d) {
+    var sel = $("k_" + d);
+    if (!sel || !keys[d]) return;
+    var present = false;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === keys[d]) { present = true; break; }
+    }
+    if (!present) {
+      var o = document.createElement("option");
+      o.value = keys[d];
+      o.textContent = keys[d];
+      sel.appendChild(o);
+    }
+    sel.value = keys[d];
+  });
+}
+
+function setEnabled(on) {
+  var ids = ["disconnect", "park", "cal", "drift", "save", "load",
+             "defaults", "boot", "inverty"];
+  ids.forEach(function (id) { $(id).disabled = !on; });
+  $("connect").disabled = on;
+  Object.keys(SETTINGS).forEach(function (k) { $("s_" + k).disabled = !on; });
+  MODES.forEach(function (m) { $("m_" + m.n).disabled = !on; });
+  KEY_PRESETS.forEach(function (p) { $("p_" + p).disabled = !on; });
+  DIRECTIONS.forEach(function (d) { $("k_" + d).disabled = !on; });
+}
+
+// -------------------------------------------------------- drift check ----
+
+// This check exists because the problem it looks for is real and easy to miss:
+// resting drift just outside the dead zone gives a couple of pixels a second
+// of cursor creep. Too slow to notice, fast enough to walk the pointer into a
+// corner if the rig is left plugged in.
+async function checkDrift() {
+  var box = $("driftresult");
+  box.className = "banner";
+  box.classList.remove("hide");
+  box.textContent = "Let go of the stick. Measuring for 4 seconds...";
+
+  var mx = 0, my = 0, rawx = 0, rawy = 0, n = 0;
+  var t0 = performance.now();
+  while (performance.now() - t0 < 4000) {
+    await new Promise(function (r) { setTimeout(r, 40); });
+    var t = lastTelemetry;
+    if (!t) continue;
+    n++;
+    mx = Math.max(mx, Math.abs(t.sx));
+    my = Math.max(my, Math.abs(t.sy));
+    rawx = Math.max(rawx, Math.abs(t.dx));
+    rawy = Math.max(rawy, Math.abs(t.dy));
+  }
+
+  if (!n) {
+    box.className = "banner bad";
+    box.textContent = "No data arrived. Is the board still connected?";
+    return;
+  }
+
+  var worst = Math.max(mx, my);
+  var gain = cfg.mousegain || 620;
+  var rawFrac = Math.max(rawx, rawy) / FULL_SCALE;
+  var dzPct = ((cfg.deadzone || 0) * 100).toFixed(1);
+
+  if (worst === 0) {
+    box.className = "banner ok";
+    box.innerHTML = "<strong>Dead centre is solid.</strong> Drift peaks at " +
+      Math.max(rawx, rawy) + " counts (" + (rawFrac * 100).toFixed(1) +
+      "% of travel), inside the " + dzPct + "% dead zone. The pointer will " +
+      "not move on its own.";
+  } else {
+    var want = Math.min(0.45, Math.ceil((rawFrac + 0.03) * 100) / 100);
+    box.className = "banner bad";
+    box.innerHTML = "<strong>The pointer will creep at about " +
+      (worst * gain).toFixed(1) + " px/s.</strong> Drift reaches " +
+      (rawFrac * 100).toFixed(1) + "% of travel, outside the " + dzPct +
+      "% dead zone. Try Re-centre first; if it persists, raise the dead " +
+      "zone to about " + want.toFixed(2) + ".";
+  }
+}
+
+// -------------------------------------------------------------- wire -----
+
+function init() {
+  buildSliders();
+  buildModes();
+  buildKeys();
+  setEnabled(false);
+
+  if (!("serial" in navigator)) {
+    $("unsupported").classList.remove("hide");
+    $("connect").disabled = true;
+    return;
+  }
+
+  $("connect").addEventListener("click", connect);
+  $("disconnect").addEventListener("click", disconnect);
+  $("park").addEventListener("click", function () { send("PARK"); });
+  $("cal").addEventListener("click", function () { send("CAL"); });
+  $("drift").addEventListener("click", checkDrift);
+
+  $("save").addEventListener("click", async function () {
+    await send("SAVE");
+    await send("GET");
+  });
+  $("load").addEventListener("click", async function () {
+    await send("LOAD");
+    await send("GET");
+  });
+  $("defaults").addEventListener("click", async function () {
+    if (!confirm("Restore factory defaults? Save afterwards to keep them.")) {
+      return;
+    }
+    await send("DEFAULTS");
+    await send("GET");
+  });
+  $("inverty").addEventListener("change", function (e) {
+    send("SET inverty " + (e.target.checked ? 1 : 0));
+  });
+
+  // The escape hatch. In mouse mode the stick is driving the very pointer you
+  // would need in order to click Park, so it has to be reachable by keyboard.
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && connected) {
+      send("PARK");
+      log("parked (Esc)");
+    }
+  });
+
+  // Closing the tab with the port open leaves it claimed until the browser
+  // tears it down. Releasing it explicitly is quicker and less confusing.
+  window.addEventListener("beforeunload", function () {
+    if (connected) { try { port.close(); } catch (_) {} }
+  });
+
+  navigator.serial.addEventListener("disconnect", function (e) {
+    if (connected && e.target === port) {
+      log("device unplugged", "bad");
+      disconnect();
+    }
+  });
+}
+
+init();
+</script>
+</body>
+</html>
