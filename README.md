@@ -150,7 +150,10 @@ can hold the port, so set the mode before launching the game.
 click Connect, and set everything from sliders: mode, response curves, key
 mapping, and a resting-drift check. Press *Save to device* and it persists on
 the board, so it applies on hosts the page cannot reach - an iPad claims the
-serial port before any app can use it.
+serial port before any app can use it. The same page can also listen for
+spoken commands - "left click", "right click", "middle click", or a mode
+name - and send them over the connection it already has open, for anyone who
+would rather speak a click than push the stick's own switch.
 
 **Everything else:** `rnet hid` on its own opens an interactive session
 for live tuning, and `rnet hid --help` lists every mode and setting with
