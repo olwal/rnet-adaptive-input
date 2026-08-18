@@ -146,6 +146,12 @@ stream directly, which runs in every mode, so **park it first**, otherwise the
 stick plays the game and drives your mouse at the same time. Only one program
 can hold the port, so set the mode before launching the game.
 
+**No terminal?** Open the [browser configurator](https://olwal.github.io/rnet-adaptive-input/config.html) in Chrome or Edge,
+click Connect, and set everything from sliders: mode, response curves, key
+mapping, and a resting-drift check. Press *Save to device* and it persists on
+the board, so it applies on hosts the page cannot reach - an iPad claims the
+serial port before any app can use it.
+
 **Everything else:** `rnet hid` on its own opens an interactive session
 for live tuning, and `rnet hid --help` lists every mode and setting with
 its range. Gamepad mode is `rnet hid mode gamepad`, and it is DirectInput
