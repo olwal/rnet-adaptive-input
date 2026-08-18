@@ -1,192 +1,287 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="booting">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>R-net Adaptive Input - configure</title>
+<meta name="color-scheme" content="light dark">
+<title>R-net Adaptive Input</title>
+<meta name="theme-color" content="#e9e9e6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0b0b" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg: #14161c; --panel: #1c1f28; --edge: #2c3140;
-    --ink: #e7eaf0; --dim: #98a0b0; --accent: #7fd6a8;
-    --warn: #e8a33d; --bad: #e8756a; --focus: #8fb8ff;
-  }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --bg: #f4f5f8; --panel: #fff; --edge: #d8dce4;
-      --ink: #1a1d24; --dim: #5a6474; --accent: #1d7f52;
-      --warn: #9a5c00; --bad: #b03027; --focus: #1f5fd0;
-    }
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 1.5rem; background: var(--bg); color: var(--ink);
-    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
-  }
-  .wrap { max-width: 1080px; margin: 0 auto; }
-  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
-  h2 { font-size: 1rem; margin: 0 0 .9rem; letter-spacing: .02em;
-       text-transform: uppercase; color: var(--dim); }
-  p.lede { margin: 0 0 1.25rem; color: var(--dim); }
-  .panel { background: var(--panel); border: 1px solid var(--edge);
-           border-radius: 12px; padding: 1.1rem 1.2rem; margin-bottom: 1rem; }
-  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
-  button, select {
-    font: inherit; color: var(--ink); background: var(--panel);
-    border: 1px solid var(--edge); border-radius: 8px;
-    padding: .45rem .8rem; cursor: pointer;
-  }
-  button:hover:not(:disabled) { border-color: var(--focus); }
-  button:disabled { opacity: .45; cursor: not-allowed; }
-  button.primary { background: var(--accent); border-color: var(--accent);
-                   color: #0d1712; font-weight: 600; }
-  button.on { background: var(--accent); border-color: var(--accent);
-              color: #0d1712; font-weight: 600; }
-  button.danger { border-color: var(--bad); color: var(--bad); }
-  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-  .row { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  .spread { display: flex; justify-content: space-between; align-items: center;
-            gap: 1rem; flex-wrap: wrap; }
-  .field { margin-bottom: .95rem; }
-  .field label { display: flex; justify-content: space-between;
-                 gap: 1rem; font-weight: 600; margin-bottom: .2rem; }
-  .field .val { font-variant-numeric: tabular-nums; color: var(--accent);
-                font-weight: 700; }
-  .field .help { color: var(--dim); font-size: .85rem; margin-top: .1rem; }
-  input[type=range] { width: 100%; accent-color: var(--accent); }
-  .tag { font-size: .72rem; text-transform: uppercase; letter-spacing: .04em;
-         border: 1px solid var(--edge); border-radius: 999px;
-         padding: .05rem .5rem; color: var(--dim); font-weight: 600; }
-  #log { font: 12.5px/1.5 ui-monospace, Consolas, monospace; height: 8.5rem;
-         overflow-y: auto; white-space: pre-wrap; color: var(--dim);
-         background: var(--bg); border: 1px solid var(--edge);
-         border-radius: 8px; padding: .6rem .7rem; }
-  .status { font-weight: 600; }
-  .status.off { color: var(--dim); }
-  .status.on { color: var(--accent); }
-  .banner { border-left: 4px solid var(--warn); padding: .7rem .9rem;
-            background: var(--panel); border-radius: 8px; margin-bottom: 1rem; }
-  .banner.bad { border-left-color: var(--bad); }
-  .banner.ok { border-left-color: var(--accent); }
-  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
-  .keymap { display: grid; grid-template-columns: auto 1fr; gap: .4rem .7rem;
-            align-items: center; }
-  .nums { font: 13px/1.7 ui-monospace, Consolas, monospace; color: var(--dim);
-          font-variant-numeric: tabular-nums; }
-  svg.stick { display: block; margin: 0 auto .6rem; }
-  a { color: var(--focus); }
-  .hide { display: none !important; }
+/* ---------------------------------------------------------------- reset */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+
+/* ---------------------------------------------------------------- theme */
+:root {
+  --page: #e9e9e6;
+  --page-fg: #1a1a18;
+  --page-muted: #86867f;
+  --page-line: rgba(0,0,0,.12);
+  --accent: #f5c400;
+  --font: "Inter", "Inter var", -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --r: 4px;
+  --face: #fff;
+  --fg: #131311;
+  --muted: #8d8d86;
+  --edge: rgba(0,0,0,.10);
+  /* Status ink. Desaturated so it reads as part of a warm neutral palette
+     rather than as traffic lights bolted onto one. */
+  --ok: #3f7d54;
+  --bad: #b4472e;
+}
+html.dark {
+  --page: #0b0b0b;
+  --page-fg: #f0f0ee;
+  --page-muted: #6f6f6a;
+  --page-line: rgba(255,255,255,.14);
+  --face: #151515;
+  --fg: #f0f0ee;
+  --muted: #78786f;
+  --edge: rgba(255,255,255,.14);
+  --ok: #7bbd90;
+  --bad: #e08a72;
+}
+/* No cross-fades on the very first paint, so a dark board does not flash light. */
+html.booting *, html.booting *::before, html.booting *::after { transition: none !important; }
+
+body {
+  background: var(--page);
+  color: var(--page-fg);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "tnum" 1;
+  min-height: 100vh;
+  padding: 24px max(16px, 3vw) 64px;
+  transition: background-color .5s ease, color .5s ease;
+}
+
+/* ----------------------------------------------------------------- type */
+.wrap { max-width: 1160px; margin: 0 auto; }
+h1 {
+  font-size: 15px; font-weight: 600; letter-spacing: .02em;
+  margin: 0 0 2px;
+}
+.lede { margin: 0; font-size: 11.5px; color: var(--page-muted); }
+h2 {
+  margin: 0 0 12px; font-size: 9px; font-weight: 600;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+}
+.hint { margin: 8px 0 0; font-size: 10.5px; line-height: 1.55; color: var(--muted); }
+a { color: inherit; text-decoration-color: var(--page-line); }
+a:hover { text-decoration-color: currentColor; }
+
+/* -------------------------------------------------------------- controls */
+.btn {
+  font: inherit; font-size: 11px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--page-fg); background: transparent;
+  border: 1px solid var(--page-line); border-radius: var(--r);
+  padding: 6px 10px; cursor: pointer;
+  transition: background-color .15s ease, border-color .15s ease, opacity .15s ease;
+}
+.btn:hover:not(:disabled) { border-color: currentColor; }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #14140f; }
+.btn.solid { background: var(--accent); border-color: var(--accent); color: #14140f; font-weight: 500; }
+.btn:disabled { opacity: .38; cursor: not-allowed; }
+.btn small {
+  display: block; font-size: 9px; letter-spacing: .06em; text-transform: none;
+  font-weight: 400; opacity: .7; margin-top: 2px;
+}
+select {
+  font: inherit; font-size: 11.5px; width: 100%;
+  color: var(--fg); background: transparent;
+  border: 1px solid var(--edge); border-radius: var(--r);
+  padding: 5px 4px;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+input[type=checkbox] { accent-color: var(--accent); width: 15px; height: 15px; }
+
+/* ----------------------------------------------------------------- cards */
+.grid { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+.card {
+  background: var(--face); color: var(--fg);
+  border: 1px solid var(--edge); border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.10), 0 8px 24px -18px rgba(0,0,0,.5);
+  transition: background-color .35s ease, border-color .35s ease;
+}
+.card + .card { margin-top: 18px; }
+.bar {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 14px; flex-wrap: wrap; margin-bottom: 18px;
+}
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cols4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+/* ---------------------------------------------------------------- fields */
+.field + .field { margin-top: 14px; }
+.field .top {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+}
+.field .name {
+  font-size: 10px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--fg);
+}
+.field .val {
+  font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.tag {
+  font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase;
+  border: 1px solid var(--edge); border-radius: 999px;
+  padding: 1px 6px; color: var(--muted); font-weight: 600; margin-left: 6px;
+  vertical-align: 1px;
+}
+
+/* ----------------------------------------------------------------- state */
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--page-muted); flex: none;
+}
+.dot.live { background: var(--ok); }
+.state { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+         color: var(--page-muted); }
+.note {
+  border-left: 2px solid var(--accent); padding: 9px 12px;
+  background: var(--face); border-radius: var(--r);
+  font-size: 11.5px; line-height: 1.55; color: var(--fg);
+  margin-bottom: 18px;
+}
+.note.ok  { border-left-color: var(--ok); }
+.note.bad { border-left-color: var(--bad); }
+.note strong { font-weight: 600; }
+
+.readout {
+  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--muted);
+  letter-spacing: .02em; text-align: center; margin-top: 2px;
+}
+svg.stick { display: block; margin: 2px auto 0; }
+
+#log {
+  font: 400 10.5px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+  height: 132px; overflow-y: auto; white-space: pre-wrap;
+  color: var(--muted); background: var(--page);
+  border: 1px solid var(--edge); border-radius: var(--r); padding: 8px 10px;
+}
+.keymap { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; align-items: center; }
+.keymap label {
+  font-size: 10px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--muted);
+}
+.hide { display: none !important; }
 </style>
 </head>
 <body>
 <div class="wrap">
 
-<h1>R-net Adaptive Input</h1>
-<p class="lede">
-  Configure the joystick from a browser. Nothing to install.
-  <a href="https://github.com/olwal/rnet-adaptive-input">Project</a>
-</p>
-
-<div id="unsupported" class="banner bad hide">
-  <strong>This browser cannot talk to serial devices.</strong>
-  The Web Serial API needs desktop Chrome, Edge or Opera. Safari and Firefox do
-  not implement it, and neither does any browser on iOS or iPadOS. Configure
-  from a computer, press <em>Save to device</em>, then plug the joystick into
-  the tablet - the settings are stored on the board itself.
-</div>
-
-<div class="panel spread">
-  <div class="row">
-    <button id="connect" class="primary">Connect</button>
-    <button id="disconnect" disabled>Disconnect</button>
-    <span id="status" class="status off">not connected</span>
+<div class="bar">
+  <div>
+    <h1>R-net Adaptive Input</h1>
+    <p class="lede">
+      Configure the joystick from a browser.
+      <a href="https://github.com/olwal/rnet-adaptive-input">Source</a>
+    </p>
   </div>
   <div class="row">
-    <button id="park" class="danger" disabled title="Escape also parks it">
-      Park (Esc)
-    </button>
+    <span class="dot" id="dot-state"></span>
+    <span class="state" id="status">not connected</span>
+    <button id="connect" class="btn solid">Connect</button>
+    <button id="disconnect" class="btn" disabled>Disconnect</button>
+    <button id="park" class="btn" disabled title="Escape also parks it">Park · Esc</button>
   </div>
 </div>
 
-<div id="runaway" class="banner hide">
-  <strong>Heads up.</strong> In mouse or keyboard mode the joystick is driving
-  this computer while you use this page. If the pointer runs away, press
-  <strong>Escape</strong> to park it.
+<div id="unsupported" class="note bad hide">
+  <strong>This browser cannot reach serial devices.</strong>
+  Web Serial needs desktop Chrome, Edge or Opera. Safari and Firefox do not
+  implement it, and no browser on iOS or iPadOS does. Configure from a computer,
+  press Save to device, then plug the joystick into the tablet — the settings
+  live on the board itself.
 </div>
 
-<div class="cols">
+<div id="runaway" class="note hide">
+  <strong>The joystick is driving this computer.</strong>
+  In mouse or keyboard mode it is live while you use this page. If the pointer
+  runs away, press <strong>Escape</strong>.
+</div>
+
+<div class="grid">
 
   <div>
-    <div class="panel">
+    <div class="card">
       <h2>Live input</h2>
-      <svg class="stick" width="220" height="220" viewBox="-110 -110 220 220"
+      <svg class="stick" width="212" height="212" viewBox="-106 -106 212 212"
            aria-label="Live joystick position">
-        <circle cx="0" cy="0" r="100" fill="none" stroke="currentColor"
-                stroke-opacity=".18" stroke-width="1.5"/>
-        <circle id="dzring" cx="0" cy="0" r="12" fill="none"
-                stroke="currentColor" stroke-opacity=".3"
-                stroke-dasharray="3 4" stroke-width="1.5"/>
-        <line x1="-104" y1="0" x2="104" y2="0" stroke="currentColor"
-              stroke-opacity=".12"/>
-        <line x1="0" y1="-104" x2="0" y2="104" stroke="currentColor"
-              stroke-opacity=".12"/>
-        <circle id="dot" cx="0" cy="0" r="9" fill="var(--accent)"/>
+        <circle cx="0" cy="0" r="96" fill="none" stroke="currentColor"
+                stroke-opacity=".16" stroke-width="1"/>
+        <circle id="dzring" cx="0" cy="0" r="12" fill="none" stroke="currentColor"
+                stroke-opacity=".3" stroke-dasharray="2 4" stroke-width="1"/>
+        <line x1="-100" y1="0" x2="100" y2="0" stroke="currentColor" stroke-opacity=".10"/>
+        <line x1="0" y1="-100" x2="0" y2="100" stroke="currentColor" stroke-opacity=".10"/>
+        <circle id="dot" cx="0" cy="0" r="7" fill="var(--accent)"/>
       </svg>
-      <div class="nums" id="readout">waiting for data</div>
-      <div class="row" style="margin-top:.7rem">
-        <button id="cal" disabled title="Let go of the stick first">
-          Re-centre
-        </button>
-        <button id="drift" disabled>Check resting drift</button>
+      <div class="readout" id="readout">waiting for data</div>
+      <div class="row" style="margin-top:14px">
+        <button id="cal" class="btn" disabled title="Let go of the stick first">Re-centre</button>
+        <button id="drift" class="btn" disabled>Check drift</button>
       </div>
-      <div id="driftresult" class="banner hide" style="margin:.8rem 0 0"></div>
+      <div id="driftresult" class="note hide" style="margin:14px 0 0"></div>
     </div>
 
-    <div class="panel">
+    <div class="card">
       <h2>Mode</h2>
-      <div class="grid4" id="modes"></div>
-      <p style="color:var(--dim);font-size:.85rem;margin:.7rem 0 0">
-        All the USB interfaces are live at once; this picks which one the stick
+      <div class="cols4" id="modes"></div>
+      <p class="hint">
+        Every USB interface is live at once; this picks which one the stick
         drives. The serial stream runs regardless.
       </p>
     </div>
 
-    <div class="panel">
+    <div class="card">
       <h2>Startup</h2>
       <div class="field">
-        <label for="boot">Mode on power-up
-          <span class="tag">needs save</span></label>
-        <select id="boot" disabled></select>
-        <div class="help">
-          Stored on the board, so it applies on any host - including ones this
-          page cannot reach, like an iPad.
+        <div class="top">
+          <span class="name">Mode on power-up <span class="tag">needs save</span></span>
         </div>
+        <select id="boot" disabled aria-label="Mode on power-up"></select>
+        <p class="hint">
+          Stored on the board, so it applies on any host — including ones this
+          page cannot reach, like an iPad.
+        </p>
       </div>
-      <div class="row">
-        <button id="save" class="primary" disabled>Save to device</button>
-        <button id="load" disabled>Revert to saved</button>
-        <button id="defaults" disabled>Factory defaults</button>
+      <div class="row" style="margin-top:14px">
+        <button id="save" class="btn solid" disabled>Save to device</button>
+        <button id="load" class="btn" disabled>Revert</button>
+        <button id="defaults" class="btn" disabled>Defaults</button>
       </div>
     </div>
   </div>
 
   <div>
-    <div class="panel">
+    <div class="card">
       <h2>Response</h2>
       <div id="sliders"></div>
-      <div class="field" style="margin-bottom:0">
-        <label for="inverty">Invert Y axis</label>
-        <input type="checkbox" id="inverty" disabled>
+      <div class="field">
+        <div class="top">
+          <span class="name">Invert Y axis</span>
+          <input type="checkbox" id="inverty" disabled aria-label="Invert Y axis">
+        </div>
       </div>
     </div>
 
-    <div class="panel">
+    <div class="card">
       <h2>Keyboard mapping</h2>
-      <div class="grid4" id="presets" style="margin-bottom:.9rem"></div>
+      <div class="cols4" id="presets" style="margin-bottom:14px"></div>
       <div class="keymap" id="keymap"></div>
     </div>
 
-    <div class="panel">
+    <div class="card">
       <h2>Device log</h2>
       <div id="log" role="log" aria-live="polite"></div>
     </div>
@@ -228,7 +323,7 @@ var SETTINGS = {
 var MODES = [
   { n: 0, name: "Parked",   blurb: "drives nothing" },
   { n: 1, name: "Gamepad",  blurb: "absolute axes" },
-  { n: 2, name: "Mouse",    blurb: "moves the pointer" },
+  { n: 2, name: "Mouse",    blurb: "the pointer" },
   { n: 3, name: "Keyboard", blurb: "sends keys" }
 ];
 
@@ -285,9 +380,9 @@ async function connect() {
   connected = true;
   setEnabled(true);
   $("status").textContent = "connected";
-  $("status").className = "status on";
+  $("dot-state").classList.add("live");
   $("runaway").classList.remove("hide");
-  log("connected", "accent");
+  log("connected", "ok");
 
   readLoop = pump();
   // Populate from the device rather than from anything hardcoded here, so the
@@ -327,9 +422,9 @@ async function disconnect() {
   port = writer = reader = readLoop = null;
   setEnabled(false);
   $("status").textContent = "not connected";
-  $("status").className = "status off";
+  $("dot-state").classList.remove("live");
   $("runaway").classList.add("hide");
-  log("disconnected - the port is free for rnet and the demos again");
+  log("disconnected — the port is free for rnet and the demos again");
 }
 
 // --------------------------------------------------------- parsing --------
@@ -378,7 +473,7 @@ function applyCfg(body) {
   if (f.boot !== undefined) cfg.boot = +f.boot;
   if (f.mode !== undefined) mode = +f.mode;
   syncControls();
-  log("read configuration from device", "accent");
+  log("read configuration from device", "ok");
 }
 
 function applyKeys(body) {
@@ -395,21 +490,21 @@ function pad(n) {
 }
 
 function paint(t) {
-  var R = 100;
+  var R = 96;
   var x = Math.max(-1.4, Math.min(1.4, t.dx / FULL_SCALE));
   var y = Math.max(-1.4, Math.min(1.4, t.dy / FULL_SCALE));
   $("dot").setAttribute("cx", (x * R).toFixed(1));
   $("dot").setAttribute("cy", (-y * R).toFixed(1));
-  $("dot").setAttribute("fill", t.sw ? "var(--warn)" : "var(--accent)");
+  $("dot").setAttribute("r", t.sw ? "10" : "7");
   var dz = (cfg.deadzone === undefined ? 0 : cfg.deadzone) * R;
   $("dzring").setAttribute("r", Math.max(2, dz).toFixed(1));
 
   var live = (t.sx !== 0 || t.sy !== 0);
   $("readout").textContent =
-    "raw  dx " + pad(t.dx) + "  dy " + pad(t.dy) + "      " +
-    "shaped  x " + t.sx.toFixed(3) + "  y " + t.sy.toFixed(3) +
-    (t.sw ? "      switch DOWN" : "") +
-    (live ? "" : "      (inside dead zone)");
+    "dx " + pad(t.dx) + "   dy " + pad(t.dy) + "     " +
+    "x " + t.sx.toFixed(3) + "   y " + t.sy.toFixed(3) +
+    (t.sw ? "     switch down" : "") +
+    (live ? "" : "     centred");
 
   if (t.mode !== mode) { mode = t.mode; syncModeButtons(); }
 }
@@ -423,17 +518,17 @@ function buildSliders() {
     var wrap = document.createElement("div");
     wrap.className = "field";
     wrap.innerHTML =
-      '<label for="s_' + key + '">' +
-        "<span>" + s.label +
+      '<div class="top">' +
+        '<label class="name" for="s_' + key + '">' + s.label +
           (s.scope !== "all"
             ? ' <span class="tag">' + s.scope + "</span>" : "") +
-        "</span>" +
-        '<span class="val" id="v_' + key + '">-</span>' +
-      "</label>" +
+        "</label>" +
+        '<span class="val" id="v_' + key + '">—</span>' +
+      "</div>" +
       '<input type="range" id="s_' + key + '" min="' + s.min + '" max="' +
         s.max + '" step="' + s.step + '" disabled aria-describedby="h_' +
         key + '">' +
-      '<div class="help" id="h_' + key + '">' + s.help + "</div>";
+      '<p class="hint" id="h_' + key + '">' + s.help + "</p>";
     host.appendChild(wrap);
 
     var input = wrap.querySelector("input");
@@ -466,9 +561,9 @@ function buildModes() {
   MODES.forEach(function (m) {
     var b = document.createElement("button");
     b.id = "m_" + m.n;
-    b.innerHTML = m.name +
-      '<br><span style="font-weight:400;font-size:.78rem;opacity:.75">' +
-      m.blurb + "</span>";
+    b.className = "btn";
+    b.setAttribute("aria-pressed", "false");
+    b.innerHTML = m.name + "<small>" + m.blurb + "</small>";
     b.disabled = true;
     b.addEventListener("click", function () { send("MODE " + m.n); });
     host.appendChild(b);
@@ -477,7 +572,7 @@ function buildModes() {
   MODES.forEach(function (m) {
     var o = document.createElement("option");
     o.value = m.n;
-    o.textContent = m.name + " - " + m.blurb;
+    o.textContent = m.name + " — " + m.blurb;
     boot.appendChild(o);
   });
   boot.addEventListener("change", function () { send("BOOT " + boot.value); });
@@ -489,6 +584,7 @@ function buildKeys() {
     var b = document.createElement("button");
     b.textContent = p;
     b.id = "p_" + p;
+    b.className = "btn";
     b.disabled = true;
     b.addEventListener("click", function () { send("KEYS " + p); });
     host.appendChild(b);
@@ -498,7 +594,6 @@ function buildKeys() {
     var lab = document.createElement("label");
     lab.setAttribute("for", "k_" + d);
     lab.textContent = d;
-    lab.style.fontWeight = "600";
     var sel = document.createElement("select");
     sel.id = "k_" + d;
     sel.disabled = true;
@@ -540,7 +635,7 @@ function syncControls() {
 function syncModeButtons() {
   MODES.forEach(function (m) {
     var b = $("m_" + m.n);
-    if (b) b.classList.toggle("on", m.n === mode);
+    if (b) b.setAttribute("aria-pressed", m.n === mode ? "true" : "false");
   });
 }
 
@@ -581,9 +676,9 @@ function setEnabled(on) {
 // corner if the rig is left plugged in.
 async function checkDrift() {
   var box = $("driftresult");
-  box.className = "banner";
+  box.className = "note";
   box.classList.remove("hide");
-  box.textContent = "Let go of the stick. Measuring for 4 seconds...";
+  box.textContent = "Let go of the stick. Measuring for four seconds…";
 
   var mx = 0, my = 0, rawx = 0, rawy = 0, n = 0;
   var t0 = performance.now();
@@ -599,7 +694,7 @@ async function checkDrift() {
   }
 
   if (!n) {
-    box.className = "banner bad";
+    box.className = "note bad";
     box.textContent = "No data arrived. Is the board still connected?";
     return;
   }
@@ -610,15 +705,15 @@ async function checkDrift() {
   var dzPct = ((cfg.deadzone || 0) * 100).toFixed(1);
 
   if (worst === 0) {
-    box.className = "banner ok";
+    box.className = "note ok";
     box.innerHTML = "<strong>Dead centre is solid.</strong> Drift peaks at " +
-      Math.max(rawx, rawy) + " counts (" + (rawFrac * 100).toFixed(1) +
-      "% of travel), inside the " + dzPct + "% dead zone. The pointer will " +
+      Math.max(rawx, rawy) + " counts, " + (rawFrac * 100).toFixed(1) +
+      "% of travel, inside the " + dzPct + "% dead zone. The pointer will " +
       "not move on its own.";
   } else {
     var want = Math.min(0.45, Math.ceil((rawFrac + 0.03) * 100) / 100);
-    box.className = "banner bad";
-    box.innerHTML = "<strong>The pointer will creep at about " +
+    box.className = "note bad";
+    box.innerHTML = "<strong>The pointer will creep, about " +
       (worst * gain).toFixed(1) + " px/s.</strong> Drift reaches " +
       (rawFrac * 100).toFixed(1) + "% of travel, outside the " + dzPct +
       "% dead zone. Try Re-centre first; if it persists, raise the dead " +
@@ -626,9 +721,24 @@ async function checkDrift() {
   }
 }
 
+// -------------------------------------------------------------- theme ----
+
+function applyTheme(dark) {
+  document.documentElement.classList.toggle("dark", dark);
+}
+
 // -------------------------------------------------------------- wire -----
 
 function init() {
+  var mq = window.matchMedia("(prefers-color-scheme: dark)");
+  applyTheme(mq.matches);
+  mq.addEventListener("change", function (e) { applyTheme(e.matches); });
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () {
+      document.documentElement.classList.remove("booting");
+    });
+  });
+
   buildSliders();
   buildModes();
   buildKeys();
