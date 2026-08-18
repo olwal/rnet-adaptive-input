@@ -30,6 +30,8 @@ except ImportError:
 # Modes and settings live in one table each, and both the validation and the
 # --help text are generated from them. Hand-written help drifts out of date the
 # first time a range changes.
+MODE_ORDER = [2, 3, 1, 0]      # mouse, keyboard, gamepad, parked
+
 MODE_TABLE = {
     0: ("park", ("parked", "off"),
         "drives nothing - the power-on default"),
@@ -63,7 +65,9 @@ SETTINGS = {
     "keyoff":    (0.05, 0.90, "", "keyboard",
                   "release threshold; forced below keyon"),
     "inverty":   (0.0, 1.0, "0/1", "all",
-                  "flip the Y axis in every mode"),
+                  "flip the Y axis"),
+    "invertx":   (0.0, 1.0, "0/1", "all",
+                  "flip the X axis, independently of Y"),
 }
 
 
@@ -74,6 +78,7 @@ KEY_PRESETS = {
     "wasd":   "W S A D",
     "ijkl":   "I K J L",
     "media":  "volume up/down, previous/next track",
+    "playback": "volume up/down, play/pause, next track",
 }
 DIRECTIONS = ("up", "down", "left", "right")
 KEY_NAMES = (
@@ -81,6 +86,11 @@ KEY_NAMES = (
     "home", "end", "pageup", "pagedown",
     "volup", "voldown", "play", "next", "prev",
 )
+
+
+def ordered_modes():
+    """(number, name) pairs in the order people reach for them."""
+    return [(n, MODE_NAMES[n]) for n in MODE_ORDER]
 
 
 def _fmt(v):
@@ -110,7 +120,8 @@ def build_epilog():
              "claims the CDC interface so nothing on it can send commands.",
              "",
              "modes:"]
-    for n, (primary, aliases, blurb) in MODE_TABLE.items():
+    for n in MODE_ORDER:
+        primary, aliases, blurb = MODE_TABLE[n]
         alias = f"  aliases: {', '.join(aliases)}" if aliases else ""
         lines.append(f"  {n}  {primary:<9} {blurb:<38}{alias}")
 
@@ -229,7 +240,7 @@ def cmd_watch(ser):
 
 def repl(ser):
     print("R-Net multi-HID console.  '?' for the full syntax, 'quit' to leave.")
-    print("modes: " + "  ".join(f"{n}={p}" for n, p in MODE_NAMES.items()) + "\n")
+    print("modes: " + "  ".join(f"{n}={p}" for n, p in ordered_modes()) + "\n")
 
     stop = threading.Event()
 
@@ -322,9 +333,9 @@ def main():
         if len(a.args) < 2:
             if head == "boot":
                 sys.exit("usage: boot <name|0-3>   then `save` to persist\n  " +
-                         "\n  ".join(f"{n}  {p}" for n, p in MODE_NAMES.items()))
+                         "\n  ".join(f"{n}  {p}" for n, p in ordered_modes()))
             sys.exit("usage: mode <name|0-3>\n  " +
-                     "\n  ".join(f"{n}  {p}" for n, p in MODE_NAMES.items()))
+                     "\n  ".join(f"{n}  {p}" for n, p in ordered_modes()))
         key = a.args[1].lower()
         if key not in MODES and not key.isdigit():
             sys.exit(f"unknown mode '{key}'\n  one of: "

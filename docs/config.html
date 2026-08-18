@@ -244,22 +244,38 @@ svg.stick { display: block; margin: 2px auto 0; }
     </div>
 
     <div class="card">
-      <h2>Startup</h2>
-      <div class="field">
-        <div class="top">
-          <span class="name">Mode on power-up <span class="tag">needs save</span></span>
-        </div>
-        <select id="boot" disabled aria-label="Mode on power-up"></select>
-        <p class="hint">
-          Stored on the board, so it applies on any host — including ones this
-          page cannot reach, like an iPad.
-        </p>
+      <h2>Voice control</h2>
+      <div class="row">
+        <button id="voice" class="btn" disabled aria-pressed="false">Start listening</button>
+        <span class="state" id="voicestate">off</span>
       </div>
-      <div class="row" style="margin-top:14px">
-        <button id="save" class="btn solid" disabled>Save to device</button>
-        <button id="load" class="btn" disabled>Revert</button>
-        <button id="defaults" class="btn" disabled>Defaults</button>
+      <p class="hint" id="voiceheard">&nbsp;</p>
+      <p class="hint">
+        Say <strong>left click</strong>, <strong>right click</strong>,
+        <strong>middle click</strong>, <strong>mouse mode</strong>,
+        <strong>keyboard mode</strong>, <strong>gamepad mode</strong> or
+        <strong>park</strong>. Recognition runs through the browser's built-in
+        speech service — Chrome and Edge send the audio to Google for
+        transcription, nothing here has a server of its own to send it to.
+      </p>
+      <p class="hint hide" id="voiceunsupported">
+        This browser has no speech recognition API. Voice control needs
+        desktop Chrome or Edge, same as the serial connection above.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Keep these settings</h2>
+      <div class="row">
+        <button id="save" class="btn solid" disabled>Save as startup</button>
+        <button id="load" class="btn" disabled>Revert to saved</button>
       </div>
+      <p class="hint">
+        Writes everything to the board, including the mode you are in now, and
+        comes up that way next time it is plugged in. It applies on any host —
+        including ones this page cannot reach, like an iPad.
+        <span id="bootnow"></span>
+      </p>
     </div>
   </div>
 
@@ -269,8 +285,14 @@ svg.stick { display: block; margin: 2px auto 0; }
       <div id="sliders"></div>
       <div class="field">
         <div class="top">
-          <span class="name">Invert Y axis</span>
-          <input type="checkbox" id="inverty" disabled aria-label="Invert Y axis">
+          <label class="name" for="invertx">Invert X axis</label>
+          <input type="checkbox" id="invertx" disabled>
+        </div>
+      </div>
+      <div class="field">
+        <div class="top">
+          <label class="name" for="inverty">Invert Y axis</label>
+          <input type="checkbox" id="inverty" disabled>
         </div>
       </div>
     </div>
@@ -279,6 +301,18 @@ svg.stick { display: block; margin: 2px auto 0; }
       <h2>Keyboard mapping</h2>
       <div class="cols4" id="presets" style="margin-bottom:14px"></div>
       <div class="keymap" id="keymap"></div>
+    </div>
+
+    <div class="card">
+      <h2>Factory reset</h2>
+      <div class="row">
+        <button id="defaults" class="btn" disabled>Reset everything</button>
+      </div>
+      <p class="hint">
+        Puts every setting back to its built-in default, including the key
+        mapping and the startup mode, which returns to Parked. Nothing is
+        written to the board until you save.
+      </p>
     </div>
 
     <div class="card">
@@ -320,14 +354,15 @@ var SETTINGS = {
                      "the boundary." }
 };
 
+// Listed in the order people reach for them. The wire values are unchanged.
 var MODES = [
-  { n: 0, name: "Parked",   blurb: "drives nothing" },
-  { n: 1, name: "Gamepad",  blurb: "absolute axes" },
   { n: 2, name: "Mouse",    blurb: "the pointer" },
-  { n: 3, name: "Keyboard", blurb: "sends keys" }
+  { n: 3, name: "Keyboard", blurb: "sends keys" },
+  { n: 1, name: "Gamepad",  blurb: "absolute axes" },
+  { n: 0, name: "Parked",   blurb: "drives nothing" }
 ];
 
-var KEY_PRESETS = ["arrows", "wasd", "ijkl", "media"];
+var KEY_PRESETS = ["arrows", "wasd", "ijkl", "media", "playback"];
 var DIRECTIONS = ["up", "down", "left", "right"];
 var KEY_CHOICES = [
   "UP", "DOWN", "LEFT", "RIGHT",
@@ -415,6 +450,7 @@ async function pump() {
 
 async function disconnect() {
   connected = false;
+  if (voiceWanted) stopVoice();
   try { if (reader) await reader.cancel(); } catch (_) {}
   try { if (readLoop) await readLoop; } catch (_) {}
   try { if (writer) writer.releaseLock(); } catch (_) {}
@@ -470,6 +506,7 @@ function applyCfg(body) {
     if (f[k] !== undefined) cfg[k] = +f[k];
   }
   if (f.inverty !== undefined) cfg.inverty = f.inverty === "1";
+  if (f.invertx !== undefined) cfg.invertx = f.invertx === "1";
   if (f.boot !== undefined) cfg.boot = +f.boot;
   if (f.mode !== undefined) mode = +f.mode;
   syncControls();
@@ -568,14 +605,6 @@ function buildModes() {
     b.addEventListener("click", function () { send("MODE " + m.n); });
     host.appendChild(b);
   });
-  var boot = $("boot");
-  MODES.forEach(function (m) {
-    var o = document.createElement("option");
-    o.value = m.n;
-    o.textContent = m.name + " — " + m.blurb;
-    boot.appendChild(o);
-  });
-  boot.addEventListener("change", function () { send("BOOT " + boot.value); });
 }
 
 function buildKeys() {
@@ -628,8 +657,19 @@ function syncControls() {
     if (cfg[key] !== undefined) setSlider(key, cfg[key]);
   });
   if (cfg.inverty !== undefined) $("inverty").checked = cfg.inverty;
-  if (cfg.boot !== undefined) $("boot").value = String(cfg.boot);
+  if (cfg.invertx !== undefined) $("invertx").checked = cfg.invertx;
+  if (cfg.boot !== undefined) showBoot();
   syncModeButtons();
+}
+
+function showBoot() {
+  var el = $("bootnow");
+  if (!el) return;
+  var m = null;
+  for (var i = 0; i < MODES.length; i++) {
+    if (MODES[i].n === cfg.boot) m = MODES[i];
+  }
+  el.textContent = m ? " Currently saved: " + m.name + "." : "";
 }
 
 function syncModeButtons() {
@@ -659,8 +699,9 @@ function syncKeys() {
 
 function setEnabled(on) {
   var ids = ["disconnect", "park", "cal", "drift", "save", "load",
-             "defaults", "boot", "inverty"];
+             "defaults", "inverty", "invertx"];
   ids.forEach(function (id) { $(id).disabled = !on; });
+  if (voiceSupported) $("voice").disabled = !on;
   $("connect").disabled = on;
   Object.keys(SETTINGS).forEach(function (k) { $("s_" + k).disabled = !on; });
   MODES.forEach(function (m) { $("m_" + m.n).disabled = !on; });
@@ -721,6 +762,84 @@ async function checkDrift() {
   }
 }
 
+// -------------------------------------------------------------- voice -----
+
+// Longer, more specific phrases first, so "right click" and "middle click"
+// never fall through to the plain "click" entry that follows them.
+var VOICE_COMMANDS = [
+  { phrases: ["right click"],                       cmd: "CLICK RIGHT" },
+  { phrases: ["middle click"],                      cmd: "CLICK MIDDLE" },
+  { phrases: ["left click", "click"],               cmd: "CLICK LEFT" },
+  { phrases: ["mouse mode", "mouse"],                cmd: "MODE 2" },
+  { phrases: ["keyboard mode", "keyboard"],          cmd: "MODE 3" },
+  { phrases: ["gamepad mode", "gamepad", "game pad"], cmd: "MODE 1" },
+  { phrases: ["park", "stop"],                       cmd: "PARK" }
+];
+
+var SpeechCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+var voiceSupported = !!SpeechCtor;
+var recognizer = null, voiceWanted = false;
+
+function matchVoice(text) {
+  for (var i = 0; i < VOICE_COMMANDS.length; i++) {
+    var phrases = VOICE_COMMANDS[i].phrases;
+    for (var j = 0; j < phrases.length; j++) {
+      if (text.indexOf(phrases[j]) !== -1) return VOICE_COMMANDS[i].cmd;
+    }
+  }
+  return null;
+}
+
+function setVoiceUI(on) {
+  $("voice").textContent = on ? "Stop listening" : "Start listening";
+  $("voice").setAttribute("aria-pressed", on ? "true" : "false");
+  $("voicestate").textContent = on ? "listening" : "off";
+}
+
+function buildRecognizer() {
+  var r = new SpeechCtor();
+  // Continuous, so a pause between commands does not end the session; the
+  // browser still cuts it off occasionally, which is what onend restarts.
+  r.continuous = true;
+  r.interimResults = false;
+  r.lang = navigator.language || "en-US";
+  r.onresult = function (e) {
+    var text = e.results[e.results.length - 1][0].transcript
+      .trim().toLowerCase();
+    $("voiceheard").textContent = "heard: “" + text + "”";
+    var cmd = matchVoice(text);
+    if (cmd) { send(cmd); log("voice → " + cmd); }
+  };
+  r.onerror = function (e) {
+    if (e.error === "no-speech" || e.error === "aborted") return;
+    log("voice recognition error: " + e.error, "bad");
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      stopVoice();
+    }
+  };
+  // Chrome ends the session on its own well before "stop" is ever pressed;
+  // restart it for as long as the user still wants to be listened to.
+  r.onend = function () {
+    if (voiceWanted) { try { r.start(); } catch (_) {} }
+  };
+  return r;
+}
+
+function startVoice() {
+  if (!recognizer) recognizer = buildRecognizer();
+  voiceWanted = true;
+  setVoiceUI(true);
+  try { recognizer.start(); } catch (_) {}
+  log("voice control on");
+}
+
+function stopVoice() {
+  voiceWanted = false;
+  setVoiceUI(false);
+  if (recognizer) { try { recognizer.stop(); } catch (_) {} }
+  log("voice control off");
+}
+
 // -------------------------------------------------------------- theme ----
 
 function applyTheme(dark) {
@@ -744,6 +863,15 @@ function init() {
   buildKeys();
   setEnabled(false);
 
+  if (!voiceSupported) {
+    $("voiceunsupported").classList.remove("hide");
+    $("voice").disabled = true;
+  } else {
+    $("voice").addEventListener("click", function () {
+      if (voiceWanted) stopVoice(); else startVoice();
+    });
+  }
+
   if (!("serial" in navigator)) {
     $("unsupported").classList.remove("hide");
     $("connect").disabled = true;
@@ -756,7 +884,10 @@ function init() {
   $("cal").addEventListener("click", function () { send("CAL"); });
   $("drift").addEventListener("click", checkDrift);
 
+  // One button, not two: the mode you are using is the mode you want back,
+  // so saving stamps it as the startup mode rather than asking twice.
   $("save").addEventListener("click", async function () {
+    await send("BOOT " + mode);
     await send("SAVE");
     await send("GET");
   });
@@ -773,6 +904,9 @@ function init() {
   });
   $("inverty").addEventListener("change", function (e) {
     send("SET inverty " + (e.target.checked ? 1 : 0));
+  });
+  $("invertx").addEventListener("change", function (e) {
+    send("SET invertx " + (e.target.checked ? 1 : 0));
   });
 
   // The escape hatch. In mouse mode the stick is driving the very pointer you

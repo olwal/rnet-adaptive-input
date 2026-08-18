@@ -50,6 +50,8 @@ float cfg_mousegain  = 620.0f;  // pixels/s at full deflection
 float cfg_keyon      = 0.55f;
 float cfg_keyoff     = 0.40f;
 bool  cfg_inverty    = false;
+bool  cfg_invertx    = false;   // separate, so a pointer can be flipped
+                                // on one axis without the other
 
 int x_center = 0, y_center = 0;
 float sx = 0.0f, sy = 0.0f;         // shaped, slew-limited, -1..1
@@ -202,14 +204,24 @@ static void set_mode(int m) {
 }
 
 static void drive_gamepad(bool sw) {
-  Joystick.X(axis(sx));
+  Joystick.X(axis(cfg_invertx ? -sx : sx));
   Joystick.Y(axis(cfg_inverty ? sy : -sy));   // HID Y is screen-down positive
   Joystick.button(1, sw);
   Joystick.send_now();
 }
 
+// A discrete click, independent of whatever is driving the stick's own
+// switch. Works regardless of mode, since the mouse HID interface is always
+// enumerated. The 20ms press is short enough to be imperceptible but long
+// enough for the host to register it as a real click rather than a glitch.
+static void do_click(uint8_t button) {
+  Mouse.press(button);
+  delay(20);
+  Mouse.release(button);
+}
+
 static void drive_mouse(float dt, bool sw) {
-  mouse_rx += sx * cfg_mousegain * dt;
+  mouse_rx += (cfg_invertx ? -sx : sx) * cfg_mousegain * dt;
   mouse_ry += (cfg_inverty ? sy : -sy) * cfg_mousegain * dt;
   int mx = (int)mouse_rx;
   int my = (int)mouse_ry;
@@ -269,7 +281,7 @@ static void set_keys(uint16_t u, uint16_t d, uint16_t l, uint16_t r) {
 // Bump VERSION whenever the struct changes and old saves are ignored rather
 // than misinterpreted field by field.
 const uint16_t EE_MAGIC = 0x524E;      // 'RN'
-const uint8_t  EE_VERSION = 1;
+const uint8_t  EE_VERSION = 2;
 const int      EE_ADDR = 0;
 
 struct Settings {
@@ -277,7 +289,7 @@ struct Settings {
   uint8_t  version;
   uint8_t  boot_mode;
   float    deadzone, expo, slew, mousegain, keyon, keyoff;
-  uint8_t  inverty;
+  uint8_t  inverty, invertx;
   uint16_t k_up, k_dn, k_lf, k_rt;
 };
 
@@ -293,6 +305,7 @@ static void settings_save() {
   s.keyon = cfg_keyon;
   s.keyoff = cfg_keyoff;
   s.inverty = cfg_inverty ? 1 : 0;
+  s.invertx = cfg_invertx ? 1 : 0;
   s.k_up = key_up; s.k_dn = key_dn; s.k_lf = key_lf; s.k_rt = key_rt;
   EEPROM.put(EE_ADDR, s);
   Serial.println(F("# saved"));
@@ -314,6 +327,7 @@ static bool settings_load() {
   cfg_keyoff    = constrain(s.keyoff,    0.05f, 0.90f);
   if (cfg_keyoff >= cfg_keyon) cfg_keyoff = cfg_keyon * 0.72f;
   cfg_inverty   = s.inverty != 0;
+  cfg_invertx   = s.invertx != 0;
   key_up = s.k_up; key_dn = s.k_dn; key_lf = s.k_lf; key_rt = s.k_rt;
   return true;
 }
@@ -322,7 +336,7 @@ static void settings_defaults() {
   cfg_boot = MODE_PARKED;
   cfg_deadzone = 0.06f; cfg_expo = 0.35f; cfg_slew = 6.0f;
   cfg_mousegain = 620.0f; cfg_keyon = 0.55f; cfg_keyoff = 0.40f;
-  cfg_inverty = false;
+  cfg_inverty = false; cfg_invertx = false;
   key_up = KEY_UP; key_dn = KEY_DOWN; key_lf = KEY_LEFT; key_rt = KEY_RIGHT;
 }
 
@@ -334,6 +348,7 @@ static void report_config() {
   Serial.print(F(" keyon="));         Serial.print(cfg_keyon, 2);
   Serial.print(F(" keyoff="));        Serial.print(cfg_keyoff, 2);
   Serial.print(F(" inverty="));       Serial.print(cfg_inverty ? 1 : 0);
+  Serial.print(F(" invertx="));       Serial.print(cfg_invertx ? 1 : 0);
   Serial.print(F(" mode="));          Serial.print(mode);
   Serial.print(F(" boot="));          Serial.println(cfg_boot);
 }
@@ -381,6 +396,21 @@ static void handle(char *line) {
       }
     }
     Serial.print(F("# boot=")); Serial.println(cfg_boot);
+  } else if (!strncmp(line, "CLICK", 5)) {
+    char *p = line + 5;
+    while (*p == ' ') p++;
+    if (!strcmp(p, "LEFT")) {
+      do_click(MOUSE_LEFT);
+      Serial.println(F("# click left"));
+    } else if (!strcmp(p, "RIGHT")) {
+      do_click(MOUSE_RIGHT);
+      Serial.println(F("# click right"));
+    } else if (!strcmp(p, "MIDDLE")) {
+      do_click(MOUSE_MIDDLE);
+      Serial.println(F("# click middle"));
+    } else {
+      Serial.println(F("# usage: CLICK left|right|middle"));
+    }
   } else if (!strncmp(line, "KEYS", 4)) {
     char *p = line + 4;
     while (*p == ' ') p++;
@@ -395,6 +425,11 @@ static void handle(char *line) {
     } else if (!strcmp(p, "IJKL")) {
       set_keys(KEY_I, KEY_K, KEY_J, KEY_L);
       report_keys();
+    } else if (!strcmp(p, "PLAYBACK")) {
+      // Transport rather than track-skip: play/pause under the thumb.
+      set_keys(KEY_MEDIA_VOLUME_INC, KEY_MEDIA_VOLUME_DEC,
+               KEY_MEDIA_PLAY_PAUSE, KEY_MEDIA_NEXT_TRACK);
+      report_keys();
     } else if (!strcmp(p, "MEDIA")) {
       set_keys(KEY_MEDIA_VOLUME_INC, KEY_MEDIA_VOLUME_DEC,
                KEY_MEDIA_PREV_TRACK, KEY_MEDIA_NEXT_TRACK);
@@ -408,7 +443,7 @@ static void handle(char *line) {
       while (*p == ' ') p++;
       uint16_t code = have ? key_from_name(p) : 0;
       if (!code) {
-        Serial.println(F("# usage: KEYS [arrows|wasd|ijkl|media] "
+        Serial.println(F("# usage: KEYS [arrows|wasd|ijkl|media|playback] "
                          "| KEYS <up|down|left|right> <key>"));
       } else if (!strcmp(dir, "UP")) {
         set_keys(code, key_dn, key_lf, key_rt); report_keys();
@@ -443,6 +478,7 @@ static void handle(char *line) {
           assign(name, "KEYON",     &cfg_keyon,     v, 0.1f, 0.95f) ||
           assign(name, "KEYOFF",    &cfg_keyoff,    v, 0.05f, 0.90f);
       if (!ok && !strcmp(name, "INVERTY")) { cfg_inverty = v > 0.5f; ok = true; }
+      if (!ok && !strcmp(name, "INVERTX")) { cfg_invertx = v > 0.5f; ok = true; }
       if (cfg_keyoff >= cfg_keyon) cfg_keyoff = cfg_keyon * 0.72f;
       Serial.println(ok ? F("# ok") : F("# unknown setting"));
     } else {
@@ -451,10 +487,11 @@ static void handle(char *line) {
   } else if (!strcmp(line, "HELP") || !strcmp(line, "?")) {
     Serial.println(F("# MODE 0..3  (0 parked, 1 gamepad, 2 mouse, 3 keyboard)"));
     Serial.println(F("# PARK | CAL | GET | HELP"));
+    Serial.println(F("# CLICK left|right|middle   (works in any mode)"));
     Serial.println(F("# SAVE | LOAD | DEFAULTS | BOOT 0..3   (BOOT then SAVE"));
     Serial.println(F("#   to come up in that mode with no serial host)"));
-    Serial.println(F("# SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty <v>"));
-    Serial.println(F("# KEYS [arrows|wasd|ijkl|media]"));
+    Serial.println(F("# SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty|invertx <v>"));
+    Serial.println(F("# KEYS [arrows|wasd|ijkl|media|playback]"));
     Serial.println(F("# KEYS <up|down|left|right> <A-Z|0-9|space|enter|esc|"
                      "tab|home|end|pageup|pagedown|volup|voldown|play|next|prev>"));
   } else if (line[0]) {

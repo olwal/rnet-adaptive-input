@@ -126,7 +126,7 @@ left-click.
 
 ```
 rnet hid mode keyboard
-rnet hid keys wasd             # or arrows (default), ijkl, media
+rnet hid keys wasd             # or arrows (default), ijkl, media, playback
 rnet hid keys up space         # or remap one direction at a time
 ```
 

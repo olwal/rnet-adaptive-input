@@ -79,10 +79,17 @@ free. Commands are line-based ASCII, typable from any terminal:
 
 ```
 MODE 0..3 | PARK | CAL | GET | HELP
-SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty <value>
-KEYS [arrows|wasd|ijkl|media] | KEYS <up|down|left|right> <key>
+CLICK left|right|middle
+SET deadzone|expo|slew|mousegain|keyon|keyoff|inverty|invertx <value>
+KEYS [arrows|wasd|ijkl|media|playback] | KEYS <up|down|left|right> <key>
 SAVE | LOAD | DEFAULTS | BOOT 0..3
 ```
+
+`CLICK` fires a brief press-and-release of the named mouse button and works in
+every mode, since the mouse HID interface stays enumerated regardless of what
+is currently being driven. It exists so something other than the stick's own
+switch — the [browser configurator's voice control](../README.md), for
+instance — can issue a click.
 
 ### Persisting settings
 
