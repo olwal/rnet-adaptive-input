@@ -153,7 +153,9 @@ the board, so it applies on hosts the page cannot reach - an iPad claims the
 serial port before any app can use it. The same page can also listen for
 spoken commands - "left click", "right click", "middle click", or a mode
 name - and send them over the connection it already has open, for anyone who
-would rather speak a click than push the stick's own switch.
+would rather speak a click than push the stick's own switch. Clicking works
+over serial in any mode, not only mouse mode, so a spoken "left click" still
+lands even while the stick is driving the keyboard or a game.
 
 **Everything else:** `rnet hid` on its own opens an interactive session
 for live tuning, and `rnet hid --help` lists every mode and setting with

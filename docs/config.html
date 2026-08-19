@@ -246,7 +246,7 @@ svg.stick { display: block; margin: 2px auto 0; }
     <div class="card">
       <h2>Voice control</h2>
       <div class="row">
-        <button id="voice" class="btn" disabled aria-pressed="false">Start listening</button>
+        <button id="voice" class="btn" aria-pressed="false">Start listening</button>
         <span class="state" id="voicestate">off</span>
       </div>
       <p class="hint" id="voiceheard">&nbsp;</p>
@@ -261,6 +261,13 @@ svg.stick { display: block; margin: 2px auto 0; }
       <p class="hint hide" id="voiceunsupported">
         This browser has no speech recognition API. Voice control needs
         desktop Chrome or Edge, same as the serial connection above.
+      </p>
+      <p class="hint hide" id="voicefilewarning">
+        This page was opened as a local <code>file://</code>, which re-prompts
+        for the microphone every time recognition restarts. Serve it over
+        HTTP instead — <code>python3 -m http.server</code> from the
+        <code>docs</code> folder, then open <code>localhost:8000/config.html</code> —
+        and it will ask once.
       </p>
     </div>
 
@@ -382,6 +389,10 @@ var lastTelemetry = null;
 // ---------------------------------------------------------------- log ------
 
 function log(line, tone) {
+  // Mirrored to the real console too: this panel is easy to miss, and
+  // whoever is debugging with devtools open should not have to guess where
+  // to look.
+  if (tone === "bad") console.error(line); else console.log(line);
   var el = $("log");
   var div = document.createElement("div");
   div.textContent = line;
@@ -701,7 +712,9 @@ function setEnabled(on) {
   var ids = ["disconnect", "park", "cal", "drift", "save", "load",
              "defaults", "inverty", "invertx"];
   ids.forEach(function (id) { $(id).disabled = !on; });
-  if (voiceSupported) $("voice").disabled = !on;
+  // Deliberately not tied to the serial connection: recognition itself is
+  // worth testing (mic access, transcript feedback) even before a board is
+  // plugged in. send() is a silent no-op with no writer, so nothing breaks.
   $("connect").disabled = on;
   Object.keys(SETTINGS).forEach(function (k) { $("s_" + k).disabled = !on; });
   MODES.forEach(function (m) { $("m_" + m.n).disabled = !on; });
@@ -801,26 +814,76 @@ function buildRecognizer() {
   // Continuous, so a pause between commands does not end the session; the
   // browser still cuts it off occasionally, which is what onend restarts.
   r.continuous = true;
-  r.interimResults = false;
+  // Interim results are shown live so the transcript panel proves the mic
+  // and recognizer are actually running, rather than sitting silent until a
+  // phrase happens to be recognised.
+  r.interimResults = true;
   r.lang = navigator.language || "en-US";
+  var netErrors = 0;
+  r.onstart = function () { log("voice: recognizer started, listening…"); };
   r.onresult = function (e) {
-    var text = e.results[e.results.length - 1][0].transcript
-      .trim().toLowerCase();
-    $("voiceheard").textContent = "heard: “" + text + "”";
+    netErrors = 0;    // a result proves the connection to the service works
+    var res = e.results[e.results.length - 1];
+    var text = res[0].transcript.trim().toLowerCase();
+    if (!res.isFinal) {
+      $("voiceheard").textContent = "hearing: “" + text + "”…";
+      return;
+    }
     var cmd = matchVoice(text);
-    if (cmd) { send(cmd); log("voice → " + cmd); }
+    $("voiceheard").textContent =
+      "heard: “" + text + "”" + (cmd ? " → " + cmd : " (no match)");
+    log("voice heard: “" + text + "”" + (cmd ? " → " + cmd : " — no match"));
+    if (cmd) send(cmd);
   };
   r.onerror = function (e) {
-    if (e.error === "no-speech" || e.error === "aborted") return;
+    // Logged rather than swallowed: silence here is exactly what makes a
+    // stalled or looping recognizer indistinguishable from a working one
+    // that simply has nothing to say yet.
+    if (e.error === "no-speech") {
+      log("voice: no speech detected, restarting…");
+      return;
+    }
+    if (e.error === "aborted") return;      // caused by our own stop()
+    if (e.error === "network") {
+      netErrors++;
+      // Recognition is cloud-based: every phrase is streamed to the
+      // browser's speech service, and this error means that connection
+      // itself failed, before any audio was even sent. No page-side fix for
+      // it — a VPN/firewall blocking the request, no route to the service,
+      // or (on Chromium builds without Google's API keys) a permanent
+      // condition. Retrying rapidly forever just spams the log, so give up
+      // after a few tries instead of retrying blindly.
+      if (netErrors >= 3) {
+        log("voice: giving up after repeated network errors — recognition " +
+            "could not reach the speech service. Check that this browser " +
+            "profile actually has internet access (a VPN or firewall can " +
+            "block it even when the rest of the page works), or try a " +
+            "different browser. Click Start listening to try again.", "bad");
+        stopVoice();
+        return;
+      }
+      log("voice recognition error: network (attempt " + netErrors + ")", "bad");
+      return;
+    }
     log("voice recognition error: " + e.error, "bad");
     if (e.error === "not-allowed" || e.error === "service-not-allowed") {
       stopVoice();
     }
   };
-  // Chrome ends the session on its own well before "stop" is ever pressed;
-  // restart it for as long as the user still wants to be listened to.
+  // Chrome ends the session on its own well before "stop" is ever pressed —
+  // on no-speech within a few seconds, in practice, despite "continuous" —
+  // so restart it for as long as the user still wants to be listened to. The
+  // small delay avoids hammering start() into an immediate second no-speech.
   r.onend = function () {
-    if (voiceWanted) { try { r.start(); } catch (_) {} }
+    if (!voiceWanted) return;
+    setTimeout(function () {
+      if (!voiceWanted) return;
+      try {
+        r.start();
+      } catch (e) {
+        log("voice: restart failed: " + e.message, "bad");
+      }
+    }, 250);
   };
   return r;
 }
@@ -829,7 +892,14 @@ function startVoice() {
   if (!recognizer) recognizer = buildRecognizer();
   voiceWanted = true;
   setVoiceUI(true);
-  try { recognizer.start(); } catch (_) {}
+  try {
+    recognizer.start();
+  } catch (e) {
+    log("voice: failed to start: " + e.message, "bad");
+    voiceWanted = false;
+    setVoiceUI(false);
+    return;
+  }
   log("voice control on");
 }
 
@@ -867,7 +937,11 @@ function init() {
     $("voiceunsupported").classList.remove("hide");
     $("voice").disabled = true;
   } else {
+    if (location.protocol === "file:") {
+      $("voicefilewarning").classList.remove("hide");
+    }
     $("voice").addEventListener("click", function () {
+      console.log("[voice] button clicked, voiceWanted=" + voiceWanted);
       if (voiceWanted) stopVoice(); else startVoice();
     });
   }
